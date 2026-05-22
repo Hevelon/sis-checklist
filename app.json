@@ -1,27 +1,29 @@
 {
   "expo": {
-    "name": "SISChecklist54",
-    "slug": "SISChecklist54",
+    "name": "SIS Checklist",
+    "slug": "sis-checklist",
     "version": "1.0.0",
     "orientation": "portrait",
+
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A1E40"
     },
+
     "ios": {
       "supportsTablet": true
     },
+
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0A1E40"
+      }
     },
+
     "web": {
       "favicon": "./assets/favicon.png"
     }
