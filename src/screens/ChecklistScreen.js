@@ -1,7 +1,7 @@
-import React,{
-useContext,
+import React, {
 useState,
-useCallback
+useEffect,
+useContext
 } from 'react';
 
 import {
@@ -11,25 +11,19 @@ StyleSheet,
 TextInput,
 TouchableOpacity,
 ScrollView,
-Image,
-Alert,
-KeyboardAvoidingView,
-Platform,
-TouchableWithoutFeedback,
-Keyboard
+ActivityIndicator,
+Alert
 } from 'react-native';
-
-import * as ImagePicker
-from 'expo-image-picker';
-
-import {
-useFocusEffect
-} from '@react-navigation/native';
 
 import {
 collection,
+getDocs,
+query,
+where,
 addDoc,
-getDocs
+serverTimestamp,
+doc,
+getDoc
 } from 'firebase/firestore';
 
 import {
@@ -46,43 +40,24 @@ const{
 usuario
 }=useContext(AuthContext);
 
-if(!usuario){
-
-return null;
-
-}
-
-const itens=[
-
-'Nível óleo motor',
-'Água',
-'Faróis',
-'Lanternas',
-'Pneus',
-'Retrovisores',
-'Freios',
-'Documentação'
-
-];
-
 const[
-veiculos,
-setVeiculos
-]=useState([]);
-
-const[
-buscaVeiculo,
-setBuscaVeiculo
+placa,
+setPlaca
 ]=useState('');
 
 const[
-veiculoSelecionado,
-setVeiculoSelecionado
+veiculo,
+setVeiculo
 ]=useState(null);
 
 const[
-mostrarSugestoes,
-setMostrarSugestoes
+modeloChecklist,
+setModeloChecklist
+]=useState(null);
+
+const[
+loading,
+setLoading
 ]=useState(false);
 
 const[
@@ -91,146 +66,170 @@ setRespostas
 ]=useState({});
 
 const[
-fotos,
-setFotos
+observacoes,
+setObservacoes
 ]=useState({});
 
 const[
-problemas,
-setProblemas
-]=useState({});
+observacaoGeral,
+setObservacaoGeral
+]=useState('');
 
-// ✅ CORRIGIDO
-// Atualiza automaticamente ao voltar para tela
+async function buscarVeiculo(){
 
-useFocusEffect(
+if(!placa){
 
-useCallback(()=>{
-
-buscarVeiculos();
-
-},[])
-
+Alert.alert(
+'Atenção',
+'Digite a placa'
 );
 
-async function buscarVeiculos(){
+return;
+
+}
 
 try{
 
-const querySnapshot=
-await getDocs(
+setLoading(true);
+
+const q=query(
+
 collection(
 db,
 'veiculos'
+),
+
+where(
+'placa',
+'==',
+placa.toUpperCase()
 )
+
 );
 
-const lista=[];
+const querySnapshot=
+await getDocs(q);
 
-querySnapshot.forEach((doc)=>{
+if(querySnapshot.empty){
 
-lista.push({
+Alert.alert(
+'Erro',
+'Veículo não encontrado'
+);
 
-id:doc.id,
-...doc.data()
+setVeiculo(null);
+
+setModeloChecklist(null);
+
+return;
+
+}
+
+const dados=
+querySnapshot.docs[0].data();
+
+setVeiculo(dados);
+
+let tipo='leve';
+
+if(
+dados.tipo
+){
+
+tipo=
+dados.tipo.toLowerCase();
+
+}
+
+const modeloRef=
+doc(
+db,
+'modelosChecklist',
+tipo === 'pesado'
+? 'veiculo_pesado'
+: tipo === 'granel'
+? 'granel_liquido'
+: 'veiculo_leve'
+);
+
+const modeloSnap=
+await getDoc(modeloRef);
+
+if(modeloSnap.exists()){
+
+const modelo=
+modeloSnap.data();
+
+setModeloChecklist(modelo);
+
+const respostasIniciais={};
+
+modelo.itens.forEach((item)=>{
+
+respostasIniciais[item]='ok';
 
 });
 
-});
+setRespostas(
+respostasIniciais
+);
 
-setVeiculos(lista);
+}
 
 }catch(e){
 
 console.log(e);
 
-}
-
-}
-
-const veiculosFiltrados=
-
-veiculos.filter((v)=>{
-
-const texto=
-`${v.placa} ${v.modelo} ${v.marca}`
-.toLowerCase();
-
-return texto.includes(
-buscaVeiculo.toLowerCase()
+Alert.alert(
+'Erro',
+'Erro ao buscar veículo'
 );
 
-});
+}finally{
 
-async function selecionar(
+setLoading(false);
+
+}
+
+}
+
+function alterarResposta(
 item,
-status
+valor
 ){
 
-setRespostas({
+setRespostas((prev)=>({
 
-...respostas,
-[item]:status
+...prev,
 
-});
+[item]:valor
 
-if(status==='ruim'){
-
-abrirCamera(item);
+}));
 
 }
 
+function alterarObservacao(
+item,
+texto
+){
+
+setObservacoes((prev)=>({
+
+...prev,
+
+[item]:texto
+
+}));
+
 }
 
-async function abrirCamera(item){
+async function salvarChecklist(){
 
-const permissao=
-
-await ImagePicker
-.requestCameraPermissionsAsync();
-
-if(!permissao.granted){
+if(!veiculo){
 
 Alert.alert(
 'Atenção',
-'Permita acesso à câmera'
-);
-
-return;
-
-}
-
-const resultado=
-
-await ImagePicker
-.launchCameraAsync({
-
-quality:0.7
-
-});
-
-if(!resultado.canceled){
-
-setFotos({
-
-...fotos,
-
-[item]:
-resultado.assets[0].uri
-
-});
-
-}
-
-}
-
-async function finalizar(){
-
-if(!veiculoSelecionado){
-
-Alert.alert(
-'Atenção',
-'Selecione veículo'
+'Busque um veículo'
 );
 
 return;
@@ -238,6 +237,8 @@ return;
 }
 
 try{
+
+setLoading(true);
 
 await addDoc(
 collection(
@@ -246,39 +247,32 @@ db,
 ),
 {
 
+veiculo,
+
 usuario:{
 
 uid:usuario.uid,
+
 nome:usuario.nome,
-email:usuario.email,
-cargo:usuario.cargo,
-nivel:usuario.nivel
+
+cargo:usuario.cargo
 
 },
 
-veiculo:{
-
-placa:
-veiculoSelecionado.placa,
-
-marca:
-veiculoSelecionado.marca,
-
-modelo:
-veiculoSelecionado.modelo,
-
-tipo:
-veiculoSelecionado.tipo
-
-},
+tipoChecklist:
+modeloChecklist?.tipo || '',
 
 respostas,
 
-problemas,
+problemas:
+observacoes,
 
-fotos,
+observacaoGeral,
 
-data:new Date()
+status:'concluido',
+
+data:
+serverTimestamp()
 
 }
 );
@@ -288,12 +282,17 @@ Alert.alert(
 'Checklist salvo'
 );
 
-setBuscaVeiculo('');
-setVeiculoSelecionado(null);
-setMostrarSugestoes(false);
+setPlaca('');
+
+setVeiculo(null);
+
+setModeloChecklist(null);
+
 setRespostas({});
-setProblemas({});
-setFotos({});
+
+setObservacoes({});
+
+setObservacaoGeral('');
 
 }catch(e){
 
@@ -301,8 +300,12 @@ console.log(e);
 
 Alert.alert(
 'Erro',
-'Não foi possível salvar'
+'Erro ao salvar checklist'
 );
+
+}finally{
+
+setLoading(false);
 
 }
 
@@ -310,26 +313,9 @@ Alert.alert(
 
 return(
 
-<TouchableWithoutFeedback
-onPress={Keyboard.dismiss}
->
-
-<KeyboardAvoidingView
-
-style={styles.container}
-
-behavior={
-Platform.OS==='ios'
-? 'padding'
-: 'height'
-}
-
->
-
 <ScrollView
+style={styles.container}
 showsVerticalScrollIndicator={false}
-keyboardShouldPersistTaps="handled"
-nestedScrollEnabled={true}
 contentContainerStyle={{
 paddingBottom:120
 }}
@@ -341,130 +327,99 @@ paddingBottom:120
 Novo Checklist
 </Text>
 
-<View style={styles.usuarioBox}>
-
-<Text style={styles.usuarioNome}>
-👤 {usuario?.nome}
-</Text>
-
-<Text style={styles.usuarioCargo}>
-{usuario?.cargo}
-</Text>
-
-</View>
-
-<Text style={styles.label}>
-Veículo
+<Text style={styles.subtitulo}>
+Inspeção inteligente da frota
 </Text>
 
 <TextInput
-style={styles.busca}
-placeholder="Digite placa ou modelo..."
+style={styles.input}
+placeholder="Placa do veículo"
 placeholderTextColor="#777"
-value={buscaVeiculo}
-onChangeText={(texto)=>{
-
-setBuscaVeiculo(texto);
-
-setMostrarSugestoes(true);
-
-}}
-onFocus={()=>
-setMostrarSugestoes(true)
-}
+autoCapitalize="characters"
+value={placa}
+onChangeText={setPlaca}
 />
 
-{mostrarSugestoes &&
-buscaVeiculo !== '' && (
-
-<View style={styles.box}>
-
-{veiculosFiltrados.map((v)=>(
-
 <TouchableOpacity
-key={v.id}
-
-style={styles.card}
-
-onPress={()=>{
-
-setVeiculoSelecionado(v);
-
-setBuscaVeiculo(v.placa);
-
-setMostrarSugestoes(false);
-
-}}
-
+style={styles.buscarBtn}
+onPress={buscarVeiculo}
+disabled={loading}
 >
 
-<Text style={styles.cardNome}>
-🚗 {v.placa}
-</Text>
+<Text style={styles.buscarTexto}>
 
-<Text style={styles.cardSub}>
-{v.marca} - {v.modelo}
+{loading
+? 'Buscando...'
+: 'Buscar Veículo'}
+
 </Text>
 
 </TouchableOpacity>
 
-))}
+{veiculo &&(
+
+<View style={styles.veiculoBox}>
+
+<Text style={styles.veiculoPlaca}>
+🚗 {veiculo.placa}
+</Text>
+
+<Text style={styles.veiculoInfo}>
+Modelo: {veiculo.modelo}
+</Text>
+
+<Text style={styles.veiculoInfo}>
+Tipo: {veiculo.tipo || 'leve'}
+</Text>
 
 </View>
 
 )}
 
-{veiculoSelecionado && (
+{modeloChecklist &&(
 
-<View style={styles.selecionadoBox}>
+<>
 
-<Text style={styles.selecionadoNome}>
-🚗 {veiculoSelecionado.placa}
+<Text style={styles.secao}>
+Checklist
 </Text>
 
-<Text style={styles.selecionadoSub}>
-{veiculoSelecionado.marca} - {veiculoSelecionado.modelo}
-</Text>
-
-</View>
-
-)}
-
-<Text style={styles.sub}>
-Inspeção Básica
-</Text>
-
-{itens.map((item,index)=>(
+{modeloChecklist.itens.map((item,index)=>(
 
 <View
 key={index}
-style={styles.item}
+style={styles.card}
 >
 
-<Text style={styles.nome}>
+<Text style={styles.itemTitulo}>
 {item}
 </Text>
 
-<View style={styles.acoes}>
+<View style={styles.botoes}>
 
 <TouchableOpacity
 
 style={[
 
-styles.ok,
+styles.statusBtn,
 
-respostas[item]==='ok' &&
-styles.selecionado
+respostas[item]==='ok'
+&& styles.ok
 
 ]}
 
 onPress={()=>
-selecionar(item,'ok')
+
+alterarResposta(
+item,
+'ok'
+)
+
 }
 
 >
 
-<Text style={styles.icone}>
+<Text style={styles.statusTexto}>
 ✔
 </Text>
 
@@ -474,20 +429,25 @@ selecionar(item,'ok')
 
 style={[
 
-styles.alerta,
+styles.statusBtn,
 
-respostas[item]==='alerta' &&
-styles.selecionado
+respostas[item]==='alerta'
+&& styles.alerta
 
 ]}
 
 onPress={()=>
-selecionar(item,'alerta')
+
+alterarResposta(
+item,
+'alerta'
+)
+
 }
 
 >
 
-<Text style={styles.icone}>
+<Text style={styles.statusTexto}>
 ⚠
 </Text>
 
@@ -497,20 +457,25 @@ selecionar(item,'alerta')
 
 style={[
 
-styles.ruim,
+styles.statusBtn,
 
-respostas[item]==='ruim' &&
-styles.selecionado
+respostas[item]==='ruim'
+&& styles.ruim
 
 ]}
 
 onPress={()=>
-selecionar(item,'ruim')
+
+alterarResposta(
+item,
+'ruim'
+)
+
 }
 
 >
 
-<Text style={styles.icone}>
+<Text style={styles.statusTexto}>
 ✖
 </Text>
 
@@ -518,41 +483,24 @@ selecionar(item,'ruim')
 
 </View>
 
-{fotos[item] &&(
-
-<Image
-source={{
-uri:fotos[item]
-}}
-style={styles.preview}
-/>
-
-)}
-
-{respostas[item]==='ruim' &&(
+{respostas[item] !== 'ok' &&(
 
 <TextInput
-
-style={styles.problema}
-
-placeholder="Descreva o defeito..."
-
+style={styles.obs}
+placeholder="Observações / defeitos"
 placeholderTextColor="#777"
-
 multiline
+value={
+observacoes[item] || ''
+}
+onChangeText={(t)=>
 
-onChangeText={(texto)=>
-
-setProblemas({
-
-...problemas,
-
-[item]:texto
-
-})
+alterarObservacao(
+item,
+t
+)
 
 }
-
 />
 
 )}
@@ -561,24 +509,42 @@ setProblemas({
 
 ))}
 
+<Text style={styles.secao}>
+Observação Geral
+</Text>
+
+<TextInput
+style={styles.obsGrande}
+placeholder="Digite observações gerais..."
+placeholderTextColor="#777"
+multiline
+value={observacaoGeral}
+onChangeText={setObservacaoGeral}
+/>
+
 <TouchableOpacity
-style={styles.botao}
-onPress={finalizar}
+style={styles.salvarBtn}
+onPress={salvarChecklist}
+disabled={loading}
 >
 
-<Text style={styles.botaoTexto}>
-Finalizar Checklist
+<Text style={styles.salvarTexto}>
+
+{loading
+? 'Salvando...'
+: 'Salvar Checklist'}
+
 </Text>
 
 </TouchableOpacity>
 
+</>
+
+)}
+
 </View>
 
 </ScrollView>
-
-</KeyboardAvoidingView>
-
-</TouchableWithoutFeedback>
 
 )
 
@@ -593,189 +559,158 @@ backgroundColor:'#F3F5F8'
 
 content:{
 padding:20,
+paddingTop:50,
+paddingBottom:50,
 width:'100%',
-maxWidth:600,
+maxWidth:700,
 alignSelf:'center'
 },
 
 titulo:{
-fontSize:34,
+fontSize:38,
 fontWeight:'bold',
-marginTop:50,
-marginBottom:25,
 color:'#111'
 },
 
-usuarioBox:{
-backgroundColor:'#fff',
-padding:20,
-borderRadius:18,
+subtitulo:{
+fontSize:18,
+color:'#666',
+marginTop:5,
 marginBottom:25
 },
 
-usuarioNome:{
-fontSize:22,
-fontWeight:'bold',
-color:'#111'
-},
-
-usuarioCargo:{
-fontSize:16,
-color:'#666',
-marginTop:6
-},
-
-label:{
-fontSize:22,
-fontWeight:'bold',
-marginBottom:15,
-color:'#111'
-},
-
-busca:{
+input:{
 backgroundColor:'#fff',
-height:58,
-borderRadius:14,
+height:60,
+borderRadius:16,
 paddingHorizontal:18,
 fontSize:17,
 marginBottom:15,
 color:'#111'
 },
 
-box:{
-marginBottom:20
+buscarBtn:{
+backgroundColor:'#0A1E40',
+height:60,
+borderRadius:16,
+justifyContent:'center',
+alignItems:'center',
+marginBottom:25
 },
 
-card:{
-backgroundColor:'#fff',
-padding:18,
-borderRadius:18,
-marginBottom:10
-},
-
-cardNome:{
-fontSize:18,
-fontWeight:'bold',
-color:'#111'
-},
-
-cardSub:{
-fontSize:15,
-color:'#666',
-marginTop:5
-},
-
-selecionadoBox:{
-backgroundColor:'#EFFFF4',
-padding:18,
-borderRadius:18,
-marginBottom:25,
-borderWidth:2,
-borderColor:'#2CC36B'
-},
-
-selecionadoNome:{
+buscarTexto:{
+color:'#fff',
 fontSize:20,
+fontWeight:'bold'
+},
+
+veiculoBox:{
+backgroundColor:'#fff',
+padding:20,
+borderRadius:20,
+marginBottom:25
+},
+
+veiculoPlaca:{
+fontSize:28,
 fontWeight:'bold',
 color:'#111'
 },
 
-selecionadoSub:{
-fontSize:15,
-color:'#666',
-marginTop:5
+veiculoInfo:{
+fontSize:16,
+color:'#555',
+marginTop:8
 },
 
-sub:{
-fontSize:24,
+secao:{
+fontSize:28,
 fontWeight:'bold',
 marginBottom:20,
 color:'#111'
 },
 
-item:{
+card:{
 backgroundColor:'#fff',
-padding:15,
-borderRadius:18,
-marginBottom:15
+padding:20,
+borderRadius:20,
+marginBottom:18
 },
 
-nome:{
+itemTitulo:{
+fontSize:22,
 fontWeight:'bold',
-fontSize:20,
-marginBottom:15,
+marginBottom:20,
 color:'#111'
 },
 
-acoes:{
+botoes:{
 flexDirection:'row',
 justifyContent:'space-between'
 },
 
+statusBtn:{
+width:90,
+height:90,
+borderRadius:20,
+justifyContent:'center',
+alignItems:'center',
+backgroundColor:'#EEE'
+},
+
 ok:{
-backgroundColor:'#66D37E',
-padding:16,
-width:70,
-borderRadius:12,
-alignItems:'center'
+backgroundColor:'#66D37E'
 },
 
 alerta:{
-backgroundColor:'#F2D046',
-padding:16,
-width:70,
-borderRadius:12,
-alignItems:'center'
+backgroundColor:'#F2D046'
 },
 
 ruim:{
-backgroundColor:'#FF7A7A',
-padding:16,
-width:70,
-borderRadius:12,
-alignItems:'center'
+backgroundColor:'#FF7A7A'
 },
 
-icone:{
-fontSize:28
+statusTexto:{
+fontSize:42,
+fontWeight:'bold',
+color:'#222'
 },
 
-selecionado:{
-borderWidth:3,
-borderColor:'#0A1E40'
+obs:{
+backgroundColor:'#F8F8F8',
+borderRadius:15,
+padding:15,
+marginTop:18,
+fontSize:16,
+color:'#111',
+minHeight:100,
+textAlignVertical:'top'
 },
 
-preview:{
-width:'100%',
-height:220,
-marginTop:15,
-borderRadius:15
-},
-
-problema:{
-backgroundColor:'#F5F5F5',
-height:100,
-padding:12,
-marginTop:12,
-borderRadius:12,
+obsGrande:{
+backgroundColor:'#fff',
+borderRadius:18,
+padding:18,
+minHeight:140,
+fontSize:16,
+marginBottom:25,
 textAlignVertical:'top',
 color:'#111'
 },
 
-botao:{
+salvarBtn:{
 backgroundColor:'#2CC36B',
-height:60,
-borderRadius:15,
+height:65,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
-marginTop:20,
-marginBottom:60
+marginBottom:40
 },
 
-botaoTexto:{
+salvarTexto:{
 color:'#fff',
-fontWeight:'bold',
-fontSize:20
+fontSize:22,
+fontWeight:'bold'
 }
 
 });
