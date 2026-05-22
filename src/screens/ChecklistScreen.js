@@ -1,6 +1,5 @@
-import React, {
+import React,{
 useState,
-useEffect,
 useContext
 } from 'react';
 
@@ -12,8 +11,11 @@ TextInput,
 TouchableOpacity,
 ScrollView,
 ActivityIndicator,
-Alert
+Alert,
+Image
 } from 'react-native';
+
+import * as ImagePicker from 'expo-image-picker';
 
 import {
 collection,
@@ -71,9 +73,19 @@ setObservacoes
 ]=useState({});
 
 const[
+fotos,
+setFotos
+]=useState({});
+
+const[
 observacaoGeral,
 setObservacaoGeral
 ]=useState('');
+
+
+// ==========================================
+// BUSCAR VEÍCULO
+// ==========================================
 
 async function buscarVeiculo(){
 
@@ -130,67 +142,111 @@ querySnapshot.docs[0].data();
 
 setVeiculo(dados);
 
+
+// ==========================================
+// IDENTIFICA TIPO
+// ==========================================
+
 let tipo='leve';
 
 if(dados.categoria){
 
-const tipoTraccar=
+const categoria=
 dados.categoria.toLowerCase();
 
-if(tipoTraccar==='truck'){
+if(categoria==='truck'){
 
 tipo='pesado';
 
-}else if(tipoTraccar==='car'){
+}else if(categoria==='car'){
 
 tipo='leve';
 
-}else if(tipoTraccar==='bus'){
+}else if(categoria==='bus'){
 
 tipo='pesado';
 
-}else{
+}else if(categoria==='granel'){
 
-tipo='leve';
+tipo='granel';
 
 }
 
 }
+
+
+// ==========================================
+// DEFINE DOCUMENTO
+// ==========================================
+
+let documentoChecklist=
+'veiculo_leve';
+
+if(tipo==='pesado'){
+
+documentoChecklist=
+'veiculo_pesado';
+
+}
+
+if(tipo==='granel'){
+
+documentoChecklist=
+'granel_liquido';
+
+}
+
+
+// ==========================================
+// BUSCA CHECKLIST
+// ==========================================
 
 const modeloRef=
 doc(
 db,
 'modelosChecklist',
-tipo === 'pesado'
-? 'veiculo_pesado'
-: tipo === 'granel'
-? 'granel_liquido'
-: 'veiculo_leve'
+documentoChecklist
 );
 
 const modeloSnap=
 await getDoc(modeloRef);
 
-if(modeloSnap.exists()){
+if(!modeloSnap.exists()){
+
+Alert.alert(
+'Erro',
+'Checklist não encontrado'
+);
+
+return;
+
+}
 
 const modelo=
 modeloSnap.data();
 
 setModeloChecklist(modelo);
 
+
+// ==========================================
+// RESPOSTAS INICIAIS
+// ==========================================
+
 const respostasIniciais={};
 
-modelo.itens.forEach((item)=>{
+modelo.secoes?.forEach((secao)=>{
+
+secao.itens?.forEach((item)=>{
 
 respostasIniciais[item]='ok';
+
+});
 
 });
 
 setRespostas(
 respostasIniciais
 );
-
-}
 
 }catch(e){
 
@@ -209,6 +265,11 @@ setLoading(false);
 
 }
 
+
+// ==========================================
+// ALTERAR STATUS
+// ==========================================
+
 function alterarResposta(
 item,
 valor
@@ -224,6 +285,11 @@ setRespostas((prev)=>({
 
 }
 
+
+// ==========================================
+// ALTERAR OBS
+// ==========================================
+
 function alterarObservacao(
 item,
 texto
@@ -238,6 +304,64 @@ setObservacoes((prev)=>({
 }));
 
 }
+
+
+// ==========================================
+// FOTO
+// ==========================================
+
+async function tirarFoto(item){
+
+const permissao=
+
+await ImagePicker.requestCameraPermissionsAsync();
+
+if(!permissao.granted){
+
+Alert.alert(
+'Atenção',
+'Permissão da câmera negada'
+);
+
+return;
+
+}
+
+const resultado=
+
+await ImagePicker.launchCameraAsync({
+
+quality:0.5,
+allowsEditing:true
+
+});
+
+if(resultado.canceled){
+
+return;
+
+}
+
+const foto=
+resultado.assets[0].uri;
+
+setFotos((prev)=>({
+
+...prev,
+
+[item]:[
+...(prev[item] || []),
+foto
+]
+
+}));
+
+}
+
+
+// ==========================================
+// SALVAR
+// ==========================================
 
 async function salvarChecklist(){
 
@@ -283,6 +407,8 @@ respostas,
 problemas:
 observacoes,
 
+fotos,
+
 observacaoGeral,
 
 status:'concluido',
@@ -308,6 +434,8 @@ setRespostas({});
 
 setObservacoes({});
 
+setFotos({});
+
 setObservacaoGeral('');
 
 }catch(e){
@@ -327,6 +455,7 @@ setLoading(false);
 
 }
 
+
 return(
 
 <ScrollView
@@ -339,6 +468,7 @@ paddingBottom:120
 
 <View style={styles.content}>
 
+
 <Text style={styles.titulo}>
 Novo Checklist
 </Text>
@@ -346,6 +476,7 @@ Novo Checklist
 <Text style={styles.subtitulo}>
 Inspeção inteligente da frota
 </Text>
+
 
 <TextInput
 style={styles.input}
@@ -355,6 +486,7 @@ autoCapitalize="characters"
 value={placa}
 onChangeText={setPlaca}
 />
+
 
 <TouchableOpacity
 style={styles.buscarBtn}
@@ -371,6 +503,7 @@ disabled={loading}
 </Text>
 
 </TouchableOpacity>
+
 
 {veiculo &&(
 
@@ -392,6 +525,7 @@ Categoria: {veiculo.categoria || 'car'}
 
 )}
 
+
 {modeloChecklist &&(
 
 <>
@@ -400,7 +534,20 @@ Categoria: {veiculo.categoria || 'car'}
 Checklist
 </Text>
 
-{modeloChecklist.itens.map((item,index)=>(
+
+{modeloChecklist.secoes?.map((secao,sIndex)=>(
+
+<View
+key={sIndex}
+style={styles.secaoBox}
+>
+
+<Text style={styles.secaoTitulo}>
+{secao.titulo}
+</Text>
+
+
+{secao.itens?.map((item,index)=>(
 
 <View
 key={index}
@@ -411,7 +558,9 @@ style={styles.card}
 {item}
 </Text>
 
+
 <View style={styles.botoes}>
+
 
 <TouchableOpacity
 
@@ -436,10 +585,12 @@ item,
 >
 
 <Text style={styles.statusTexto}>
-✔
+OK
 </Text>
 
 </TouchableOpacity>
+
+
 
 <TouchableOpacity
 
@@ -464,10 +615,12 @@ item,
 >
 
 <Text style={styles.statusTexto}>
-⚠
+AT
 </Text>
 
 </TouchableOpacity>
+
+
 
 <TouchableOpacity
 
@@ -475,7 +628,7 @@ style={[
 
 styles.statusBtn,
 
-respostas[item]==='ruim'
+respostas[item]==='nc'
 && styles.ruim
 
 ]}
@@ -484,7 +637,7 @@ onPress={()=>
 
 alterarResposta(
 item,
-'ruim'
+'nc'
 )
 
 }
@@ -492,18 +645,55 @@ item,
 >
 
 <Text style={styles.statusTexto}>
-✖
+N/C
+</Text>
+
+</TouchableOpacity>
+
+
+
+<TouchableOpacity
+
+style={[
+
+styles.statusBtn,
+
+respostas[item]==='na'
+&& styles.na
+
+]}
+
+onPress={()=>
+
+alterarResposta(
+item,
+'na'
+)
+
+}
+
+>
+
+<Text style={styles.statusTexto}>
+N/A
 </Text>
 
 </TouchableOpacity>
 
 </View>
 
-{respostas[item] !== 'ok' &&(
+
+{(
+respostas[item]==='alerta'
+||
+respostas[item]==='nc'
+) &&(
+
+<>
 
 <TextInput
 style={styles.obs}
-placeholder="Observações / defeitos"
+placeholder="Descreva o problema..."
 placeholderTextColor="#777"
 multiline
 value={
@@ -519,11 +709,48 @@ t
 }
 />
 
+
+<TouchableOpacity
+
+style={styles.fotoBtn}
+
+onPress={()=>
+
+tirarFoto(item)
+
+}
+
+>
+
+<Text style={styles.fotoTexto}>
+📷 Adicionar Foto
+</Text>
+
+</TouchableOpacity>
+
+
+{fotos[item]?.map((foto,index)=>(
+
+<Image
+key={index}
+source={{uri:foto}}
+style={styles.foto}
+/>
+
+))}
+
+</>
+
 )}
 
 </View>
 
 ))}
+
+</View>
+
+))}
+
 
 <Text style={styles.secao}>
 Observação Geral
@@ -538,19 +765,26 @@ value={observacaoGeral}
 onChangeText={setObservacaoGeral}
 />
 
+
 <TouchableOpacity
 style={styles.salvarBtn}
 onPress={salvarChecklist}
 disabled={loading}
 >
 
+{loading ? (
+
+<ActivityIndicator
+color="#fff"
+/>
+
+):(
+
 <Text style={styles.salvarTexto}>
-
-{loading
-? 'Salvando...'
-: 'Salvar Checklist'}
-
+Salvar Checklist
 </Text>
+
+)}
 
 </TouchableOpacity>
 
@@ -566,6 +800,7 @@ disabled={loading}
 
 }
 
+
 const styles=StyleSheet.create({
 
 container:{
@@ -574,8 +809,8 @@ backgroundColor:'#F3F5F8'
 },
 
 content:{
-padding:20,
-paddingTop:50,
+padding:16,
+paddingTop:40,
 paddingBottom:50,
 width:'100%',
 maxWidth:700,
@@ -583,80 +818,91 @@ alignSelf:'center'
 },
 
 titulo:{
-fontSize:38,
+fontSize:32,
 fontWeight:'bold',
 color:'#111'
 },
 
 subtitulo:{
-fontSize:18,
+fontSize:16,
 color:'#666',
 marginTop:5,
-marginBottom:25
+marginBottom:20
 },
 
 input:{
 backgroundColor:'#fff',
-height:60,
-borderRadius:16,
-paddingHorizontal:18,
-fontSize:17,
+height:52,
+borderRadius:14,
+paddingHorizontal:16,
+fontSize:16,
 marginBottom:15,
 color:'#111'
 },
 
 buscarBtn:{
 backgroundColor:'#0A1E40',
-height:60,
-borderRadius:16,
+height:52,
+borderRadius:14,
 justifyContent:'center',
 alignItems:'center',
-marginBottom:25
+marginBottom:20
 },
 
 buscarTexto:{
 color:'#fff',
-fontSize:20,
+fontSize:17,
 fontWeight:'bold'
 },
 
 veiculoBox:{
 backgroundColor:'#fff',
-padding:20,
-borderRadius:20,
-marginBottom:25
+padding:18,
+borderRadius:18,
+marginBottom:20
 },
 
 veiculoPlaca:{
-fontSize:28,
+fontSize:24,
 fontWeight:'bold',
 color:'#111'
 },
 
 veiculoInfo:{
-fontSize:16,
+fontSize:15,
 color:'#555',
-marginTop:8
+marginTop:5
 },
 
 secao:{
-fontSize:28,
+fontSize:26,
 fontWeight:'bold',
-marginBottom:20,
+marginBottom:15,
 color:'#111'
+},
+
+secaoBox:{
+marginBottom:25
+},
+
+secaoTitulo:{
+fontSize:24,
+fontWeight:'bold',
+marginBottom:12,
+color:'#0A1E40'
 },
 
 card:{
 backgroundColor:'#fff',
-padding:20,
-borderRadius:20,
-marginBottom:18
+padding:16,
+borderRadius:18,
+marginBottom:14
 },
 
 itemTitulo:{
-fontSize:22,
+fontSize:17,
 fontWeight:'bold',
-marginBottom:20,
+marginBottom:14,
 color:'#111'
 },
 
@@ -666,49 +912,74 @@ justifyContent:'space-between'
 },
 
 statusBtn:{
-width:90,
-height:90,
-borderRadius:20,
+width:55,
+height:55,
+borderRadius:14,
 justifyContent:'center',
 alignItems:'center',
 backgroundColor:'#EEE'
 },
 
 ok:{
-backgroundColor:'#66D37E'
+backgroundColor:'#2CC36B'
 },
 
 alerta:{
-backgroundColor:'#F2D046'
+backgroundColor:'#F2C94C'
 },
 
 ruim:{
-backgroundColor:'#FF7A7A'
+backgroundColor:'#EB5757'
+},
+
+na:{
+backgroundColor:'#9E9E9E'
 },
 
 statusTexto:{
-fontSize:42,
+fontSize:16,
 fontWeight:'bold',
-color:'#222'
+color:'#fff'
 },
 
 obs:{
 backgroundColor:'#F8F8F8',
-borderRadius:15,
-padding:15,
-marginTop:18,
-fontSize:16,
+borderRadius:14,
+padding:14,
+marginTop:14,
+fontSize:15,
 color:'#111',
-minHeight:100,
+minHeight:90,
 textAlignVertical:'top'
+},
+
+fotoBtn:{
+backgroundColor:'#0A1E40',
+height:45,
+borderRadius:12,
+justifyContent:'center',
+alignItems:'center',
+marginTop:10
+},
+
+fotoTexto:{
+color:'#fff',
+fontWeight:'bold'
+},
+
+foto:{
+width:'100%',
+height:180,
+borderRadius:12,
+marginTop:10
 },
 
 obsGrande:{
 backgroundColor:'#fff',
-borderRadius:18,
-padding:18,
-minHeight:140,
-fontSize:16,
+borderRadius:16,
+padding:16,
+minHeight:120,
+fontSize:15,
 marginBottom:25,
 textAlignVertical:'top',
 color:'#111'
@@ -716,8 +987,8 @@ color:'#111'
 
 salvarBtn:{
 backgroundColor:'#2CC36B',
-height:65,
-borderRadius:18,
+height:58,
+borderRadius:16,
 justifyContent:'center',
 alignItems:'center',
 marginBottom:40
@@ -725,7 +996,7 @@ marginBottom:40
 
 salvarTexto:{
 color:'#fff',
-fontSize:22,
+fontSize:18,
 fontWeight:'bold'
 }
 
