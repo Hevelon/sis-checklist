@@ -132,12 +132,28 @@ setVeiculo(dados);
 
 let tipo='leve';
 
-if(
-dados.tipo
-){
+if(dados.categoria){
 
-tipo=
-dados.tipo.toLowerCase();
+const tipoTraccar=
+dados.categoria.toLowerCase();
+
+if(tipoTraccar==='truck'){
+
+tipo='pesado';
+
+}else if(tipoTraccar==='car'){
+
+tipo='leve';
+
+}else if(tipoTraccar==='bus'){
+
+tipo='pesado';
+
+}else{
+
+tipo='leve';
+
+}
 
 }
 
@@ -369,7 +385,7 @@ Modelo: {veiculo.modelo}
 </Text>
 
 <Text style={styles.veiculoInfo}>
-Tipo: {veiculo.tipo || 'leve'}
+Categoria: {veiculo.categoria || 'car'}
 </Text>
 
 </View>
