@@ -9,8 +9,7 @@ View,
 Text,
 StyleSheet,
 TouchableOpacity,
-ScrollView,
-Alert
+ScrollView
 } from 'react-native';
 
 import {
@@ -23,12 +22,7 @@ getDocs
 } from 'firebase/firestore';
 
 import {
-signOut
-} from 'firebase/auth';
-
-import {
-db,
-auth
+db
 } from '../services/firebase';
 
 import {
@@ -45,6 +39,11 @@ const{
 usuario
 }=useContext(AuthContext);
 
+
+// ==========================================
+// STATES
+// ==========================================
+
 const[
 veiculos,
 setVeiculos
@@ -60,9 +59,15 @@ checklists,
 setChecklists
 ]=useState(0);
 
-// ✅ CORRIGIDO
-// Atualiza automaticamente
-// quando voltar para tela
+const[
+sinistros,
+setSinistros
+]=useState(0);
+
+
+// ==========================================
+// AUTO REFRESH
+// ==========================================
 
 useFocusEffect(
 
@@ -73,6 +78,11 @@ carregarDados();
 },[])
 
 );
+
+
+// ==========================================
+// PERMISSÃO
+// ==========================================
 
 if(
 usuario?.nivel !== 'admin' &&
@@ -92,6 +102,11 @@ Acesso negado
 );
 
 }
+
+
+// ==========================================
+// CARREGAR DADOS
+// ==========================================
 
 async function carregarDados(){
 
@@ -121,6 +136,14 @@ db,
 )
 );
 
+const sinistrosSnap=
+await getDocs(
+collection(
+db,
+'sinistros'
+)
+);
+
 setVeiculos(
 veiculosSnap.size
 );
@@ -133,6 +156,10 @@ setChecklists(
 checklistSnap.size
 );
 
+setSinistros(
+sinistrosSnap.size
+);
+
 }catch(e){
 
 console.log(e);
@@ -141,22 +168,10 @@ console.log(e);
 
 }
 
-async function sair(){
 
-try{
-
-await signOut(auth);
-
-}catch(e){
-
-Alert.alert(
-'Erro',
-'Não foi possível sair'
-);
-
-}
-
-}
+// ==========================================
+// RENDER
+// ==========================================
 
 return(
 
@@ -172,6 +187,7 @@ paddingBottom:120
 
 <View style={styles.content}>
 
+
 <Text style={styles.titulo}>
 SIS Dashboard
 </Text>
@@ -179,6 +195,11 @@ SIS Dashboard
 <Text style={styles.sub}>
 Sistema Inteligente de Checklist Veicular
 </Text>
+
+
+{/* ========================================== */}
+{/* USUÁRIO */}
+{/* ========================================== */}
 
 <View style={styles.usuarioBox}>
 
@@ -195,6 +216,11 @@ Sistema Inteligente de Checklist Veicular
 </Text>
 
 </View>
+
+
+{/* ========================================== */}
+{/* CARDS */}
+{/* ========================================== */}
 
 <View style={styles.cardsRow}>
 
@@ -224,6 +250,11 @@ Usuários
 
 </View>
 
+
+{/* ========================================== */}
+{/* CHECKLISTS */}
+{/* ========================================== */}
+
 <View style={styles.cardGrande}>
 
 <Text style={styles.numeroGrande}>
@@ -236,41 +267,66 @@ Checklists realizados
 
 </View>
 
+
+{/* ========================================== */}
+{/* SINISTROS CLICÁVEL */}
+{/* ========================================== */}
+
 <TouchableOpacity
 
-style={styles.botao}
+style={styles.cardSinistro}
+
+activeOpacity={0.9}
 
 onPress={()=>
 navigation.navigate(
-'CadastrarUsuario'
+'Sinistros'
+)
+}
+
+>
+
+<Text style={styles.sinistroTitulo}>
+🚨 Sinistros
+</Text>
+
+<Text style={styles.sinistroNumero}>
+{sinistros}
+</Text>
+
+<Text style={styles.sinistroTexto}>
+Ocorrências registradas
+</Text>
+
+</TouchableOpacity>
+
+
+{/* ========================================== */}
+{/* BOTÃO REGISTRAR SINISTRO */}
+{/* ========================================== */}
+
+<TouchableOpacity
+
+style={styles.botaoSinistro}
+
+onPress={()=>
+navigation.navigate(
+'RegistrarSinistro'
 )
 }
 
 >
 
 <Text style={styles.botaoTexto}>
-Cadastrar Usuário
+🚨 Registrar Sinistro
 </Text>
 
 </TouchableOpacity>
 
-<TouchableOpacity
 
-style={styles.botao}
-
-onPress={()=>
-navigation.navigate(
-'CadastrarVeiculo'
-)
-}
-
->
-
-<Text style={styles.botaoTexto}>
-Cadastrar Veículo
-</Text>
-
-</TouchableOpacity>
+{/* ========================================== */}
+{/* FROTA */}
+{/* ========================================== */}
 
 <TouchableOpacity
 style={styles.botaoMapa}
@@ -287,17 +343,6 @@ Frota
 
 </TouchableOpacity>
 
-<TouchableOpacity
-style={styles.botaoSair}
-onPress={sair}
->
-
-<Text style={styles.botaoTexto}>
-Sair
-</Text>
-
-</TouchableOpacity>
-
 </View>
 
 </ScrollView>
@@ -305,6 +350,7 @@ Sair
 )
 
 }
+
 
 const styles=StyleSheet.create({
 
@@ -402,7 +448,7 @@ cardGrande:{
 backgroundColor:'#fff',
 padding:25,
 borderRadius:18,
-marginBottom:30
+marginBottom:20
 },
 
 numeroGrande:{
@@ -417,8 +463,44 @@ fontSize:16,
 color:'#555'
 },
 
-botao:{
-backgroundColor:'#0A1E40',
+
+// ==========================================
+// SINISTRO
+// ==========================================
+
+cardSinistro:{
+backgroundColor:'#E53935',
+padding:25,
+borderRadius:20,
+marginBottom:25
+},
+
+sinistroTitulo:{
+fontSize:24,
+fontWeight:'bold',
+color:'#fff'
+},
+
+sinistroNumero:{
+fontSize:52,
+fontWeight:'bold',
+color:'#fff',
+marginTop:10
+},
+
+sinistroTexto:{
+fontSize:16,
+color:'#fff',
+marginTop:5
+},
+
+
+// ==========================================
+// BOTÕES
+// ==========================================
+
+botaoSinistro:{
+backgroundColor:'#E53935',
 height:60,
 borderRadius:15,
 justifyContent:'center',
@@ -433,15 +515,6 @@ borderRadius:15,
 justifyContent:'center',
 alignItems:'center',
 marginBottom:15
-},
-
-botaoSair:{
-backgroundColor:'#E53935',
-height:60,
-borderRadius:15,
-justifyContent:'center',
-alignItems:'center',
-marginBottom:50
 },
 
 botaoTexto:{

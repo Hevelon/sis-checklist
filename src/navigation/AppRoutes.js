@@ -19,6 +19,11 @@ import {
 AuthContext
 } from '../context/AuthContext';
 
+
+// ==========================================
+// TELAS
+// ==========================================
+
 import LoginScreen
 from '../screens/LoginScreen';
 
@@ -34,8 +39,32 @@ from '../screens/CadastrarVeiculoScreen';
 import DetalhesChecklistScreen
 from '../screens/DetalhesChecklistScreen';
 
+
+// ==========================================
+// SINISTROS
+// ==========================================
+
+import RegistrarSinistroScreen
+from '../screens/RegistrarSinistroScreen';
+
+import SinistrosScreen
+from '../screens/SinistrosScreen';
+
+import DetalhesSinistroScreen
+from '../screens/DetalhesSinistroScreen';
+
+
+// ==========================================
+// STACK
+// ==========================================
+
 const Stack=
 createNativeStackNavigator();
+
+
+// ==========================================
+// APP ROUTES
+// ==========================================
 
 export default function AppRoutes(){
 
@@ -43,6 +72,11 @@ const{
 usuario,
 loading
 }=useContext(AuthContext);
+
+
+// ==========================================
+// LOADING
+// ==========================================
 
 if(loading){
 
@@ -67,6 +101,11 @@ color="#2CC36B"
 
 }
 
+
+// ==========================================
+// RENDER
+// ==========================================
+
 return(
 
 <NavigationContainer>
@@ -81,29 +120,81 @@ headerShown:false
 
 <>
 
+
+{/* ========================================== */}
+{/* PRINCIPAL */}
+{/* ========================================== */}
+
 <Stack.Screen
 name="Principal"
 component={BottomTabs}
 />
+
+
+{/* ========================================== */}
+{/* USUÁRIOS */}
+{/* ========================================== */}
 
 <Stack.Screen
 name="CadastrarUsuario"
 component={CadastrarUsuarioScreen}
 />
 
+
+{/* ========================================== */}
+{/* VEÍCULOS */}
+{/* ========================================== */}
+
 <Stack.Screen
 name="CadastrarVeiculo"
 component={CadastrarVeiculoScreen}
 />
+
+
+{/* ========================================== */}
+{/* CHECKLIST */}
+{/* ========================================== */}
 
 <Stack.Screen
 name="DetalhesChecklist"
 component={DetalhesChecklistScreen}
 />
 
+
+{/* ========================================== */}
+{/* REGISTRAR SINISTRO */}
+{/* ========================================== */}
+
+<Stack.Screen
+name="RegistrarSinistro"
+component={RegistrarSinistroScreen}
+/>
+
+
+{/* ========================================== */}
+{/* LISTA SINISTROS */}
+{/* ========================================== */}
+
+<Stack.Screen
+name="Sinistros"
+component={SinistrosScreen}
+/>
+
+
+{/* ========================================== */}
+{/* DETALHES SINISTRO */}
+{/* ========================================== */}
+
+<Stack.Screen
+name="DetalhesSinistro"
+component={DetalhesSinistroScreen}
+/>
+
+
 </>
 
 ):(
+
 
 <Stack.Screen
 name="Login"

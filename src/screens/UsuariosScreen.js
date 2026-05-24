@@ -23,14 +23,23 @@ getDocs
 } from 'firebase/firestore';
 
 import {
-db
+signOut
+} from 'firebase/auth';
+
+import {
+db,
+auth
 } from '../services/firebase';
 
 import {
 AuthContext
 } from '../context/AuthContext';
 
-export default function UsuariosScreen(){
+export default function UsuariosScreen({
+
+navigation
+
+}){
 
 const{
 usuario
@@ -45,6 +54,11 @@ const[
 loading,
 setLoading
 ]=useState(true);
+
+
+// ==========================================
+// BUSCAR USUÁRIOS
+// ==========================================
 
 async function buscarUsuarios(){
 
@@ -89,9 +103,10 @@ setLoading(false);
 
 }
 
-// ✅ CORRIGIDO
-// Atualiza automaticamente
-// quando voltar para tela
+
+// ==========================================
+// AUTO REFRESH
+// ==========================================
 
 useFocusEffect(
 
@@ -102,6 +117,22 @@ buscarUsuarios();
 },[])
 
 );
+
+
+// ==========================================
+// SAIR
+// ==========================================
+
+async function sair(){
+
+await signOut(auth);
+
+}
+
+
+// ==========================================
+// PERMISSÃO
+// ==========================================
 
 if(
 usuario?.nivel !== 'admin' &&
@@ -121,6 +152,11 @@ Acesso negado
 );
 
 }
+
+
+// ==========================================
+// ÍCONE CARGO
+// ==========================================
 
 function iconeCargo(cargo){
 
@@ -143,6 +179,11 @@ return '👤';
 
 }
 
+
+// ==========================================
+// LOADING
+// ==========================================
+
 if(loading){
 
 return(
@@ -160,6 +201,11 @@ color="#2CC36B"
 
 }
 
+
+// ==========================================
+// RENDER
+// ==========================================
+
 return(
 
 <ScrollView
@@ -174,6 +220,7 @@ paddingBottom:120
 
 <View style={styles.content}>
 
+
 <Text style={styles.titulo}>
 Usuários
 </Text>
@@ -181,6 +228,34 @@ Usuários
 <Text style={styles.sub}>
 Usuários cadastrados no sistema
 </Text>
+
+
+{/* ========================================== */}
+{/* CADASTRAR USUÁRIO */}
+{/* ========================================== */}
+
+<TouchableOpacity
+
+style={styles.botaoCadastrar}
+
+onPress={()=>
+navigation.navigate(
+'CadastrarUsuario'
+)
+}
+
+>
+
+<Text style={styles.botaoTexto}>
++ Cadastrar Usuário
+</Text>
+
+</TouchableOpacity>
+
+
+{/* ========================================== */}
+{/* LISTA */}
+{/* ========================================== */}
 
 {usuarios.map((item)=>(
 
@@ -234,6 +309,11 @@ activeOpacity={0.9}
 
 ))}
 
+
+{/* ========================================== */}
+{/* VAZIO */}
+{/* ========================================== */}
+
 {usuarios.length===0 &&(
 
 <View style={styles.vazio}>
@@ -246,6 +326,22 @@ Nenhum usuário cadastrado
 
 )}
 
+
+{/* ========================================== */}
+{/* SAIR */}
+{/* ========================================== */}
+
+<TouchableOpacity
+style={styles.botaoSair}
+onPress={sair}
+>
+
+<Text style={styles.botaoTexto}>
+Sair
+</Text>
+
+</TouchableOpacity>
+
 </View>
 
 </ScrollView>
@@ -253,6 +349,7 @@ Nenhum usuário cadastrado
 )
 
 }
+
 
 const styles=StyleSheet.create({
 
@@ -300,6 +397,21 @@ fontSize:18,
 color:'#666',
 marginTop:8,
 marginBottom:25
+},
+
+botaoCadastrar:{
+backgroundColor:'#2CC36B',
+height:58,
+borderRadius:16,
+justifyContent:'center',
+alignItems:'center',
+marginBottom:20
+},
+
+botaoTexto:{
+color:'#fff',
+fontWeight:'bold',
+fontSize:18
 },
 
 card:{
@@ -361,6 +473,16 @@ alignItems:'center'
 vazioTexto:{
 fontSize:16,
 color:'#777'
+},
+
+botaoSair:{
+backgroundColor:'#111',
+height:60,
+borderRadius:15,
+justifyContent:'center',
+alignItems:'center',
+marginTop:10,
+marginBottom:50
 }
 
 });

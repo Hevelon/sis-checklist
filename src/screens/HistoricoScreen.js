@@ -18,6 +18,10 @@ Keyboard
 } from 'react-native';
 
 import {
+DatePickerModal
+} from 'react-native-paper-dates';
+
+import {
 useFocusEffect
 } from '@react-navigation/native';
 
@@ -46,6 +50,11 @@ const{
 usuario
 }=useContext(AuthContext);
 
+
+// ==========================================
+// STATES
+// ==========================================
+
 const[
 checklists,
 setChecklists
@@ -61,9 +70,20 @@ dataFiltro,
 setDataFiltro
 ]=useState('');
 
-// ✅ CORRIGIDO
-// Atualiza automaticamente
-// ao voltar para tela
+const[
+dataSelecionada,
+setDataSelecionada
+]=useState(null);
+
+const[
+openCalendario,
+setOpenCalendario
+]=useState(false);
+
+
+// ==========================================
+// CARREGAR CHECKLISTS
+// ==========================================
 
 useFocusEffect(
 
@@ -74,6 +94,11 @@ buscarChecklists();
 },[])
 
 );
+
+
+// ==========================================
+// BUSCAR CHECKLISTS
+// ==========================================
 
 async function buscarChecklists(){
 
@@ -100,18 +125,21 @@ const lista=[];
 
 querySnapshot.forEach((doc)=>{
 
-const dados=doc.data();
-
 lista.push({
 
 id:doc.id,
-...dados
+...doc.data()
 
 });
 
 });
 
 let filtrados=lista;
+
+
+// ==========================================
+// FILTRO DE USUÁRIO
+// ==========================================
 
 if(
 usuario?.nivel !== 'admin' &&
@@ -138,6 +166,11 @@ console.log(e);
 
 }
 
+
+// ==========================================
+// FILTROS
+// ==========================================
+
 const listaFiltrada=
 
 checklists.filter((item)=>{
@@ -145,11 +178,6 @@ checklists.filter((item)=>{
 const placa=
 
 item.veiculo?.placa
-?.toLowerCase() || '';
-
-const modelo=
-
-item.veiculo?.modelo
 ?.toLowerCase() || '';
 
 const data=
@@ -166,15 +194,18 @@ dataFiltro.toLowerCase();
 
 return(
 
-placa.includes(buscaPlaca) ||
-
-modelo.includes(buscaPlaca)
+placa.includes(buscaPlaca)
 
 ) &&
 
 data.includes(buscaData);
 
 });
+
+
+// ==========================================
+// RENDER
+// ==========================================
 
 return(
 
@@ -205,27 +236,60 @@ paddingBottom:120
 
 <View style={styles.content}>
 
+
 <Text style={styles.titulo}>
 Histórico
 </Text>
+
+
+{/* ========================================== */}
+{/* BUSCA PLACA */}
+{/* ========================================== */}
 
 <TextInput
 
 style={styles.input}
 
-placeholder="Filtrar placa ou modelo"
+placeholder="Filtrar placa"
 
 placeholderTextColor="#777"
 
 value={placaFiltro}
 
-onChangeText={setPlacaFiltro}
+onChangeText={(texto)=>{
+
+let valor=
+texto
+.toUpperCase()
+.replace(/[^A-Z0-9]/g,'');
+
+if(valor.length > 3){
+
+valor=
+valor.slice(0,3)
++
+'-'
++
+valor.slice(3,7);
+
+}
+
+setPlacaFiltro(valor);
+
+}}
 
 />
 
+
+{/* ========================================== */}
+{/* CAMPO DATA ESTILO ERP */}
+{/* ========================================== */}
+
+<View style={styles.dataContainer}>
+
 <TextInput
 
-style={styles.input}
+style={styles.inputData}
 
 placeholder="Filtrar data"
 
@@ -236,6 +300,63 @@ value={dataFiltro}
 onChangeText={setDataFiltro}
 
 />
+
+
+<TouchableOpacity
+
+style={styles.calendarioIcone}
+
+onPress={()=>setOpenCalendario(true)}
+
+>
+
+<Text style={styles.iconeTexto}>
+📅
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+
+{/* ========================================== */}
+{/* MODAL CALENDÁRIO */}
+{/* ========================================== */}
+
+<DatePickerModal
+
+locale="pt"
+
+mode="single"
+
+visible={openCalendario}
+
+onDismiss={()=>setOpenCalendario(false)}
+
+date={
+dataSelecionada || new Date()
+}
+
+onConfirm={({date})=>{
+
+setOpenCalendario(false);
+
+setDataSelecionada(date);
+
+setDataFiltro(
+
+date.toLocaleDateString('pt-BR')
+
+);
+
+}}
+
+/>
+
+
+{/* ========================================== */}
+{/* LISTA */}
+{/* ========================================== */}
 
 {listaFiltrada.map((item)=>(
 
@@ -248,16 +369,9 @@ style={styles.card}
 🚗 {item.veiculo?.placa || '-'}
 </Text>
 
-<Text style={styles.modelo}>
-{item.veiculo?.marca || ''}
-{' '}
-{item.veiculo?.modelo || ''}
-</Text>
 
 <View style={styles.infoBox}>
 
-{/* ✅ CORRIGIDO */}
-{/* Compatível com objeto e string */}
 
 <Text style={styles.info}>
 👤 {
@@ -271,6 +385,7 @@ typeof item.usuario === 'object'
 }
 </Text>
 
+
 <Text style={styles.info}>
 🧰 {
 
@@ -283,6 +398,7 @@ typeof item.usuario === 'object'
 }
 </Text>
 
+
 <Text style={styles.info}>
 📅 {
 
@@ -292,6 +408,7 @@ item.data?.toDate()
 }
 </Text>
 
+
 <Text style={styles.info}>
 ⚠ Problemas: {
 
@@ -300,7 +417,10 @@ item.respostas || {}
 ).filter(
 
 (v)=>
+
 v === 'ruim'
+||
+v === 'nc'
 
 ).length
 
@@ -308,6 +428,7 @@ v === 'ruim'
 </Text>
 
 </View>
+
 
 <TouchableOpacity
 
@@ -341,6 +462,11 @@ Ver detalhes
 
 ))}
 
+
+{/* ========================================== */}
+{/* VAZIO */}
+{/* ========================================== */}
+
 {listaFiltrada.length === 0 &&(
 
 <View style={styles.vazio}>
@@ -364,6 +490,7 @@ Nenhum checklist encontrado
 )
 
 }
+
 
 const styles=StyleSheet.create({
 
@@ -398,6 +525,31 @@ marginBottom:18,
 color:'#111'
 },
 
+dataContainer:{
+position:'relative',
+marginBottom:18
+},
+
+inputData:{
+backgroundColor:'#fff',
+height:58,
+borderRadius:16,
+paddingHorizontal:18,
+paddingRight:60,
+fontSize:17,
+color:'#111'
+},
+
+calendarioIcone:{
+position:'absolute',
+right:15,
+top:14
+},
+
+iconeTexto:{
+fontSize:24
+},
+
 card:{
 backgroundColor:'#fff',
 padding:22,
@@ -408,14 +560,8 @@ marginBottom:18
 placa:{
 fontSize:28,
 fontWeight:'bold',
-color:'#111'
-},
-
-modelo:{
-fontSize:18,
-color:'#666',
-marginTop:5,
-marginBottom:18
+color:'#111',
+marginBottom:15
 },
 
 infoBox:{

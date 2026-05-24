@@ -42,6 +42,11 @@ const{
 usuario
 }=useContext(AuthContext);
 
+
+// ==========================================
+// STATES
+// ==========================================
+
 const[
 placa,
 setPlaca
@@ -114,7 +119,7 @@ db,
 where(
 'placa',
 '==',
-placa.toUpperCase()
+placa
 )
 
 );
@@ -149,7 +154,18 @@ setVeiculo(dados);
 
 let tipo='leve';
 
-if(dados.categoria){
+
+// ==========================================
+// TIPO OPERACIONAL
+// ==========================================
+
+if(
+dados.tipoOperacional === 'granel'
+){
+
+tipo='granel';
+
+}else if(dados.categoria){
 
 const categoria=
 dados.categoria.toLowerCase();
@@ -166,9 +182,17 @@ tipo='leve';
 
 tipo='pesado';
 
-}else if(categoria==='granel'){
+}else if(categoria==='van'){
 
-tipo='granel';
+tipo='leve';
+
+}else if(categoria==='motorcycle'){
+
+tipo='leve';
+
+}else{
+
+tipo='leve';
 
 }
 
@@ -176,7 +200,7 @@ tipo='granel';
 
 
 // ==========================================
-// DEFINE DOCUMENTO
+// DEFINE CHECKLIST
 // ==========================================
 
 let documentoChecklist=
@@ -229,7 +253,7 @@ setModeloChecklist(modelo);
 
 
 // ==========================================
-// RESPOSTAS INICIAIS
+// INICIA RESPOSTAS
 // ==========================================
 
 const respostasIniciais={};
@@ -287,7 +311,7 @@ setRespostas((prev)=>({
 
 
 // ==========================================
-// ALTERAR OBS
+// ALTERAR OBSERVAÇÃO
 // ==========================================
 
 function alterarObservacao(
@@ -307,7 +331,7 @@ setObservacoes((prev)=>({
 
 
 // ==========================================
-// FOTO
+// TIRAR FOTO
 // ==========================================
 
 async function tirarFoto(item){
@@ -360,7 +384,7 @@ foto
 
 
 // ==========================================
-// SALVAR
+// SALVAR CHECKLIST
 // ==========================================
 
 async function salvarChecklist(){
@@ -456,6 +480,10 @@ setLoading(false);
 }
 
 
+// ==========================================
+// RENDER
+// ==========================================
+
 return(
 
 <ScrollView
@@ -478,13 +506,39 @@ Inspeção inteligente da frota
 </Text>
 
 
+{/* ========================================== */}
+{/* CAMPO PLACA COM MÁSCARA */}
+{/* ========================================== */}
+
 <TextInput
 style={styles.input}
-placeholder="Placa do veículo"
+placeholder="Digite a placa"
 placeholderTextColor="#777"
 autoCapitalize="characters"
 value={placa}
-onChangeText={setPlaca}
+
+onChangeText={(texto)=>{
+
+let valor=
+texto
+.toUpperCase()
+.replace(/[^A-Z0-9]/g,'');
+
+if(valor.length > 3){
+
+valor=
+valor.slice(0,3)
++
+'-'
++
+valor.slice(3,7);
+
+}
+
+setPlaca(valor);
+
+}}
+
 />
 
 
@@ -505,6 +559,10 @@ disabled={loading}
 </TouchableOpacity>
 
 
+{/* ========================================== */}
+{/* VEÍCULO */}
+{/* ========================================== */}
+
 {veiculo &&(
 
 <View style={styles.veiculoBox}>
@@ -513,18 +571,24 @@ disabled={loading}
 🚗 {veiculo.placa}
 </Text>
 
-<Text style={styles.veiculoInfo}>
-Modelo: {veiculo.modelo}
-</Text>
+{!!veiculo.tipoOperacional &&(
 
 <Text style={styles.veiculoInfo}>
-Categoria: {veiculo.categoria || 'car'}
+Operação:
+{' '}
+{veiculo.tipoOperacional}
 </Text>
+
+)}
 
 </View>
 
 )}
 
+
+{/* ========================================== */}
+{/* CHECKLIST */}
+{/* ========================================== */}
 
 {modeloChecklist &&(
 
@@ -558,6 +622,10 @@ style={styles.card}
 {item}
 </Text>
 
+
+{/* ========================================== */}
+{/* BOTÕES */}
+{/* ========================================== */}
 
 <View style={styles.botoes}>
 
@@ -683,6 +751,10 @@ N/A
 </View>
 
 
+{/* ========================================== */}
+{/* OBS + FOTO */}
+{/* ========================================== */}
+
 {(
 respostas[item]==='alerta'
 ||
@@ -752,6 +824,10 @@ style={styles.foto}
 ))}
 
 
+{/* ========================================== */}
+{/* OBS GERAL */}
+{/* ========================================== */}
+
 <Text style={styles.secao}>
 Observação Geral
 </Text>
@@ -765,6 +841,10 @@ value={observacaoGeral}
 onChangeText={setObservacaoGeral}
 />
 
+
+{/* ========================================== */}
+{/* SALVAR */}
+{/* ========================================== */}
 
 <TouchableOpacity
 style={styles.salvarBtn}

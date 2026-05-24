@@ -11,7 +11,9 @@ StyleSheet,
 ScrollView,
 TouchableOpacity,
 ActivityIndicator,
-Alert
+Alert,
+Modal,
+TextInput
 } from 'react-native';
 
 import {
@@ -22,7 +24,8 @@ import {
 collection,
 getDocs,
 doc,
-setDoc
+setDoc,
+updateDoc
 } from 'firebase/firestore';
 
 import {
@@ -35,11 +38,20 @@ AuthContext
 
 import axios from 'axios';
 
-export default function VeiculosScreen(){
+export default function VeiculosScreen({
+
+navigation
+
+}){
 
 const{
 usuario
 }=useContext(AuthContext);
+
+
+// ==========================================
+// STATES
+// ==========================================
 
 const[
 veiculos,
@@ -55,6 +67,31 @@ const[
 sincronizando,
 setSincronizando
 ]=useState(false);
+
+const[
+editando,
+setEditando
+]=useState(null);
+
+const[
+categoria,
+setCategoria
+]=useState('');
+
+const[
+tipoOperacional,
+setTipoOperacional
+]=useState('');
+
+const[
+busca,
+setBusca
+]=useState('');
+
+
+// ==========================================
+// CARREGAR VEÍCULOS
+// ==========================================
 
 async function carregarVeiculos(){
 
@@ -72,12 +109,12 @@ db,
 
 const lista=[];
 
-querySnapshot.forEach((doc)=>{
+querySnapshot.forEach((docItem)=>{
 
 lista.push({
 
-id:doc.id,
-...doc.data()
+id:docItem.id,
+...docItem.data()
 
 });
 
@@ -97,9 +134,10 @@ setLoading(false);
 
 }
 
-// ✅ CORRIGIDO
-// Atualiza automaticamente
-// ao voltar para tela
+
+// ==========================================
+// AUTO REFRESH
+// ==========================================
 
 useFocusEffect(
 
@@ -110,6 +148,11 @@ carregarVeiculos();
 },[])
 
 );
+
+
+// ==========================================
+// SINCRONIZAR TRACCAR
+// ==========================================
 
 async function sincronizarTraccar(){
 
@@ -127,6 +170,22 @@ response.data;
 
 for(const item of lista){
 
+let placa=
+(item.name || '-')
+.toUpperCase()
+.replace(/[^A-Z0-9]/g,'');
+
+if(placa.length > 3){
+
+placa=
+placa.slice(0,3)
++
+'-'
++
+placa.slice(3,7);
+
+}
+
 await setDoc(
 
 doc(
@@ -140,14 +199,16 @@ String(item.id)
 traccarId:
 item.id,
 
-placa:
-item.name || '-',
+placa,
 
 modelo:
 item.model || '-',
 
 categoria:
-item.category || '-',
+item.category || 'car',
+
+tipoOperacional:
+null,
 
 status:
 item.status || 'offline',
@@ -170,8 +231,6 @@ Alert.alert(
 'Veículos sincronizados'
 );
 
-// ✅ Atualiza lista automaticamente
-
 carregarVeiculos();
 
 }catch(e){
@@ -190,6 +249,100 @@ setSincronizando(false);
 }
 
 }
+
+
+// ==========================================
+// SALVAR EDIÇÃO
+// ==========================================
+
+async function salvarEdicao(){
+
+try{
+
+await updateDoc(
+
+doc(
+db,
+'veiculos',
+editando.id
+),
+
+{
+
+categoria,
+tipoOperacional:
+tipoOperacional || null
+
+}
+
+);
+
+Alert.alert(
+'Sucesso',
+'Veículo atualizado'
+);
+
+setEditando(null);
+
+carregarVeiculos();
+
+}catch(e){
+
+console.log(e);
+
+Alert.alert(
+'Erro',
+'Erro ao atualizar veículo'
+);
+
+}
+
+}
+
+
+// ==========================================
+// FILTRO
+// ==========================================
+
+const listaFiltrada=
+
+veiculos.filter((item)=>{
+
+const texto=
+busca.toLowerCase();
+
+return(
+
+item.placa
+?.toLowerCase()
+.includes(texto)
+
+||
+
+item.modelo
+?.toLowerCase()
+.includes(texto)
+
+||
+
+item.categoria
+?.toLowerCase()
+.includes(texto)
+
+||
+
+item.tipoOperacional
+?.toLowerCase()
+.includes(texto)
+
+);
+
+});
+
+
+// ==========================================
+// PERMISSÃO
+// ==========================================
 
 if(
 usuario?.nivel !== 'admin' &&
@@ -210,6 +363,11 @@ Acesso negado
 
 }
 
+
+// ==========================================
+// LOADING
+// ==========================================
+
 if(loading){
 
 return(
@@ -227,7 +385,14 @@ color="#2CC36B"
 
 }
 
+
+// ==========================================
+// RENDER
+// ==========================================
+
 return(
+
+<>
 
 <ScrollView
 style={styles.container}
@@ -239,13 +404,61 @@ paddingBottom:120
 
 <View style={styles.content}>
 
+
 <Text style={styles.titulo}>
 Veículos
 </Text>
 
 <Text style={styles.sub}>
-Frota cadastrada no sistema
+Frota cadastrada
 </Text>
+
+
+{/* ========================================== */}
+{/* BOTÃO CADASTRAR */}
+{/* ========================================== */}
+
+<TouchableOpacity
+
+style={styles.botaoCadastrar}
+
+onPress={()=>
+navigation.navigate(
+'CadastrarVeiculo'
+)
+}
+
+>
+
+<Text style={styles.botaoTexto}>
++ Cadastrar Veículo
+</Text>
+
+</TouchableOpacity>
+
+
+{/* ========================================== */}
+{/* BUSCA */}
+{/* ========================================== */}
+
+<TextInput
+
+style={styles.inputBusca}
+
+placeholder="Buscar veículo"
+
+placeholderTextColor="#777"
+
+value={busca}
+
+onChangeText={setBusca}
+
+/>
+
+
+{/* ========================================== */}
+{/* BOTÃO SYNC */}
+{/* ========================================== */}
 
 <TouchableOpacity
 style={styles.botaoSync}
@@ -263,7 +476,12 @@ disabled={sincronizando}
 
 </TouchableOpacity>
 
-{veiculos.map((item)=>(
+
+{/* ========================================== */}
+{/* LISTA */}
+{/* ========================================== */}
+
+{listaFiltrada.map((item)=>(
 
 <View
 key={item.id}
@@ -301,11 +519,13 @@ item.status === 'online'
 
 </View>
 
+
 <Text style={styles.info}>
 Modelo:
 {' '}
 {item.modelo || '-'}
 </Text>
+
 
 <Text style={styles.info}>
 Categoria:
@@ -313,17 +533,61 @@ Categoria:
 {item.categoria || '-'}
 </Text>
 
+
+{!!item.tipoOperacional &&(
+
+<Text style={styles.info}>
+Operação:
+{' '}
+{item.tipoOperacional}
+</Text>
+
+)}
+
+
 <Text style={styles.info}>
 ID Traccar:
 {' '}
 {item.traccarId || '-'}
 </Text>
 
+
+<TouchableOpacity
+
+style={styles.editarBtn}
+
+onPress={()=>{
+
+setEditando(item);
+
+setCategoria(
+item.categoria || ''
+);
+
+setTipoOperacional(
+item.tipoOperacional || ''
+);
+
+}}
+
+>
+
+<Text style={styles.editarTexto}>
+Editar
+</Text>
+
+</TouchableOpacity>
+
 </View>
 
 ))}
 
-{veiculos.length===0 &&(
+
+{/* ========================================== */}
+{/* VAZIO */}
+{/* ========================================== */}
+
+{listaFiltrada.length===0 &&(
 
 <View style={styles.vazio}>
 
@@ -339,9 +603,85 @@ Nenhum veículo encontrado
 
 </ScrollView>
 
+
+{/* ========================================== */}
+{/* MODAL */}
+{/* ========================================== */}
+
+<Modal
+visible={!!editando}
+transparent
+animationType="slide"
+>
+
+<View style={styles.modalBg}>
+
+<View style={styles.modal}>
+
+<Text style={styles.modalTitulo}>
+Editar Veículo
+</Text>
+
+
+<Text style={styles.label}>
+Categoria
+</Text>
+
+<TextInput
+style={styles.input}
+value={categoria}
+onChangeText={setCategoria}
+placeholder="car/truck/bus"
+/>
+
+
+<Text style={styles.label}>
+Tipo Operacional
+</Text>
+
+<TextInput
+style={styles.input}
+value={tipoOperacional}
+onChangeText={setTipoOperacional}
+placeholder="granel/munck"
+/>
+
+
+<TouchableOpacity
+style={styles.salvarBtn}
+onPress={salvarEdicao}
+>
+
+<Text style={styles.salvarTexto}>
+Salvar
+</Text>
+
+</TouchableOpacity>
+
+
+<TouchableOpacity
+style={styles.cancelarBtn}
+onPress={()=>setEditando(null)}
+>
+
+<Text style={styles.cancelarTexto}>
+Cancelar
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+</View>
+
+</Modal>
+
+</>
+
 )
 
 }
+
 
 const styles=StyleSheet.create({
 
@@ -388,7 +728,26 @@ sub:{
 fontSize:18,
 color:'#666',
 marginTop:8,
-marginBottom:25
+marginBottom:20
+},
+
+botaoCadastrar:{
+backgroundColor:'#2CC36B',
+height:58,
+borderRadius:16,
+justifyContent:'center',
+alignItems:'center',
+marginBottom:20
+},
+
+inputBusca:{
+backgroundColor:'#fff',
+height:55,
+borderRadius:14,
+paddingHorizontal:16,
+fontSize:16,
+marginBottom:20,
+color:'#111'
 },
 
 botaoSync:{
@@ -446,6 +805,20 @@ color:'#444',
 marginTop:6
 },
 
+editarBtn:{
+backgroundColor:'#0A1E40',
+paddingHorizontal:15,
+paddingVertical:10,
+borderRadius:10,
+marginTop:15,
+alignSelf:'flex-start'
+},
+
+editarTexto:{
+color:'#fff',
+fontWeight:'bold'
+},
+
 vazio:{
 backgroundColor:'#FFF',
 padding:30,
@@ -456,6 +829,69 @@ alignItems:'center'
 vazioTexto:{
 fontSize:16,
 color:'#777'
+},
+
+modalBg:{
+flex:1,
+backgroundColor:'rgba(0,0,0,0.5)',
+justifyContent:'center',
+padding:20
+},
+
+modal:{
+backgroundColor:'#fff',
+borderRadius:20,
+padding:20
+},
+
+modalTitulo:{
+fontSize:24,
+fontWeight:'bold',
+marginBottom:20,
+color:'#111'
+},
+
+label:{
+fontWeight:'bold',
+marginBottom:8,
+marginTop:10,
+color:'#111'
+},
+
+input:{
+backgroundColor:'#F3F5F8',
+height:55,
+borderRadius:14,
+paddingHorizontal:15,
+fontSize:16,
+marginBottom:10,
+color:'#111'
+},
+
+salvarBtn:{
+backgroundColor:'#2CC36B',
+height:55,
+borderRadius:14,
+justifyContent:'center',
+alignItems:'center',
+marginTop:15
+},
+
+salvarTexto:{
+color:'#fff',
+fontWeight:'bold',
+fontSize:18
+},
+
+cancelarBtn:{
+marginTop:15,
+alignItems:'center'
+},
+
+cancelarTexto:{
+color:'#E53935',
+fontWeight:'bold',
+fontSize:16
 }
 
 });
