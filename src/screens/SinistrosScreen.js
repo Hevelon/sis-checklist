@@ -11,7 +11,8 @@ StyleSheet,
 ScrollView,
 TouchableOpacity,
 TextInput,
-ActivityIndicator
+ActivityIndicator,
+RefreshControl
 } from 'react-native';
 
 import {
@@ -34,7 +35,7 @@ export default function SinistrosScreen({
 
 navigation
 
-}){ 
+}){
 
 const{
 usuario
@@ -59,13 +60,80 @@ setLoading
 ]=useState(true);
 
 const[
+refreshing,
+setRefreshing
+]=useState(false);
+
+const[
 busca,
 setBusca
 ]=useState('');
 
+const[
+filtroStatus,
+setFiltroStatus
+]=useState('todos');
+
+const[
+filtroSeveridade,
+setFiltroSeveridade
+]=useState('todas');
+
+const[
+dataInicial,
+setDataInicial
+]=useState('');
+
+const[
+dataFinal,
+setDataFinal
+]=useState('');
+
 
 // ==========================================
-// BUSCAR SINISTROS
+// FORMATA PLACA
+// ==========================================
+
+function formatarPlaca(placa=''){
+
+const limpa =
+placa
+.replace(/[^a-zA-Z0-9]/g,'')
+.toUpperCase();
+
+if(limpa.length <= 3){
+return limpa;
+}
+
+return `${limpa.slice(0,3)}-${limpa.slice(3,7)}`;
+
+}
+
+
+// ==========================================
+// FORMATA DATA INPUT
+// ==========================================
+
+function formatarDataInput(valor=''){
+
+const numeros =
+valor.replace(/\D/g,'');
+
+if(numeros.length <= 2){
+return numeros;
+}
+
+if(numeros.length <= 4){
+return `${numeros.slice(0,2)}/${numeros.slice(2)}`;
+}
+
+return `${numeros.slice(0,2)}/${numeros.slice(2,4)}/${numeros.slice(4,8)}`;
+
+}
+
+
+// ==========================================
+// BUSCAR
 // ==========================================
 
 async function buscarSinistros(){
@@ -119,6 +187,7 @@ console.log(e);
 }finally{
 
 setLoading(false);
+setRefreshing(false);
 
 }
 
@@ -137,27 +206,96 @@ buscarSinistros();
 
 
 // ==========================================
-// FILTRO
+// REFRESH
 // ==========================================
 
-const listaFiltrada=
+function atualizar(){
+
+setRefreshing(true);
+
+buscarSinistros();
+
+}
+
+
+// ==========================================
+// FILTROS
+// ==========================================
+
+const listaFiltrada =
 
 sinistros.filter((item)=>{
 
-const texto=
+const texto =
 busca.toLowerCase();
 
-return(
+const matchBusca =
 
 item.placa
 ?.toLowerCase()
-.includes(texto)
+.includes(
+texto.replace('-','')
+)
 
 ||
 
 item.motorista
 ?.toLowerCase()
-.includes(texto)
+.includes(texto);
+
+const matchStatus =
+
+filtroStatus === 'todos'
+
+? true
+
+: item.status === filtroStatus;
+
+const matchSeveridade =
+
+filtroSeveridade === 'todas'
+
+? true
+
+: item.severidade === filtroSeveridade;
+
+
+const matchData = (()=>{
+
+if(
+!dataInicial &&
+!dataFinal
+){
+return true;
+}
+
+const dataItem =
+item.dataOcorrencia || '';
+
+if(
+dataInicial &&
+dataItem < dataInicial
+){
+return false;
+}
+
+if(
+dataFinal &&
+dataItem > dataFinal
+){
+return false;
+}
+
+return true;
+
+})();
+
+return(
+
+matchBusca &&
+matchStatus &&
+matchSeveridade &&
+matchData
 
 );
 
@@ -165,27 +303,41 @@ item.motorista
 
 
 // ==========================================
-// STATUS COLOR
+// TOTALIZADORES
+// ==========================================
+
+const totalAbertos =
+sinistros.filter(
+i=>i.status==='aberto'
+).length;
+
+const totalAnalise =
+sinistros.filter(
+i=>i.status==='analise'
+).length;
+
+const totalFinalizados =
+sinistros.filter(
+i=>i.status==='finalizado'
+).length;
+
+
+// ==========================================
+// CORES
 // ==========================================
 
 function corStatus(status){
 
 if(status==='aberto'){
-
 return '#E53935';
-
 }
 
 if(status==='analise'){
-
 return '#F2C94C';
-
 }
 
 if(status==='finalizado'){
-
 return '#2CC36B';
-
 }
 
 return '#999';
@@ -193,28 +345,18 @@ return '#999';
 }
 
 
-// ==========================================
-// SEVERIDADE COLOR
-// ==========================================
-
 function corSeveridade(severidade){
 
 if(severidade==='leve'){
-
 return '#F2C94C';
-
 }
 
 if(severidade==='moderado'){
-
 return '#F2994A';
-
 }
 
 if(severidade==='grave'){
-
 return '#E53935';
-
 }
 
 return '#999';
@@ -251,23 +393,84 @@ color="#E53935"
 return(
 
 <ScrollView
+
 style={styles.container}
+
 showsVerticalScrollIndicator={false}
+
 contentContainerStyle={{
 paddingBottom:120
 }}
+
+refreshControl={
+
+<RefreshControl
+
+refreshing={refreshing}
+
+onRefresh={atualizar}
+
+/>
+
+}
+
 >
 
 <View style={styles.content}>
 
 
 <Text style={styles.titulo}>
-🚨 Sinistros
+🚨 Ocorrências
 </Text>
 
 <Text style={styles.sub}>
-Ocorrências registradas
+Gestão de sinistros da frota
 </Text>
+
+
+{/* ========================================== */}
+{/* TOTALIZADORES */}
+{/* ========================================== */}
+
+<View style={styles.cardsRow}>
+
+
+<View style={[styles.cardInfo,{
+backgroundColor:'#E53935'
+}]}>
+<Text style={styles.cardNumero}>
+{totalAbertos}
+</Text>
+<Text style={styles.cardTexto}>
+Abertos
+</Text>
+</View>
+
+
+<View style={[styles.cardInfo,{
+backgroundColor:'#F2C94C'
+}]}>
+<Text style={styles.cardNumero}>
+{totalAnalise}
+</Text>
+<Text style={styles.cardTextoDark}>
+Análise
+</Text>
+</View>
+
+
+<View style={[styles.cardInfo,{
+backgroundColor:'#2CC36B'
+}]}>
+<Text style={styles.cardNumero}>
+{totalFinalizados}
+</Text>
+<Text style={styles.cardTexto}>
+Finalizados
+</Text>
+</View>
+
+</View>
 
 
 {/* ========================================== */}
@@ -284,9 +487,194 @@ placeholderTextColor="#777"
 
 value={busca}
 
-onChangeText={setBusca}
+onChangeText={(texto)=>{
+
+const limpa =
+texto
+.replace(/[^a-zA-Z0-9]/g,'')
+.toUpperCase();
+
+if(limpa.length <= 3){
+
+setBusca(limpa);
+
+}else{
+
+setBusca(
+`${limpa.slice(0,3)}-${limpa.slice(3,7)}`
+);
+
+}
+
+}}
 
 />
+
+
+{/* ========================================== */}
+{/* DATAS */}
+{/* ========================================== */}
+
+<View style={styles.datasRow}>
+
+<TextInput
+
+style={styles.inputData}
+
+placeholder="Data inicial"
+
+placeholderTextColor="#777"
+
+keyboardType="numeric"
+
+value={dataInicial}
+
+onChangeText={(texto)=>{
+
+setDataInicial(
+formatarDataInput(texto)
+);
+
+}}
+
+/>
+
+
+<TextInput
+
+style={styles.inputData}
+
+placeholder="Data final"
+
+placeholderTextColor="#777"
+
+keyboardType="numeric"
+
+value={dataFinal}
+
+onChangeText={(texto)=>{
+
+setDataFinal(
+formatarDataInput(texto)
+);
+
+}}
+
+/>
+
+</View>
+
+
+{/* ========================================== */}
+{/* STATUS */}
+{/* ========================================== */}
+
+<ScrollView
+horizontal
+showsHorizontalScrollIndicator={false}
+style={styles.filtrosRow}
+>
+
+{[
+'todos',
+'aberto',
+'analise',
+'finalizado'
+].map((item)=>(
+
+<TouchableOpacity
+
+key={item}
+
+style={[
+
+styles.filtroBtn,
+
+filtroStatus===item &&
+styles.filtroAtivo
+
+]}
+
+onPress={()=>
+setFiltroStatus(item)
+}
+
+>
+
+<Text style={[
+
+styles.filtroTexto,
+
+filtroStatus===item &&
+styles.filtroTextoAtivo
+
+]}>
+
+{item}
+
+</Text>
+
+</TouchableOpacity>
+
+))}
+
+</ScrollView>
+
+
+{/* ========================================== */}
+{/* SEVERIDADE */}
+{/* ========================================== */}
+
+<ScrollView
+horizontal
+showsHorizontalScrollIndicator={false}
+style={styles.filtrosRow}
+>
+
+{[
+'todas',
+'leve',
+'moderado',
+'grave'
+].map((item)=>(
+
+<TouchableOpacity
+
+key={item}
+
+style={[
+
+styles.filtroBtn,
+
+filtroSeveridade===item &&
+styles.filtroAtivo
+
+]}
+
+onPress={()=>
+setFiltroSeveridade(item)
+}
+
+>
+
+<Text style={[
+
+styles.filtroTexto,
+
+filtroSeveridade===item &&
+styles.filtroTextoAtivo
+
+]}>
+
+{item}
+
+</Text>
+
+</TouchableOpacity>
+
+))}
+
+</ScrollView>
 
 
 {/* ========================================== */}
@@ -322,14 +710,10 @@ sinistro:item
 >
 
 
-{/* ========================================== */}
-{/* TOPO */}
-{/* ========================================== */}
-
 <View style={styles.topo}>
 
 <Text style={styles.placa}>
-🚗 {item.placa}
+🚘 {formatarPlaca(item.placa)}
 </Text>
 
 
@@ -355,36 +739,18 @@ corStatus(item.status)
 </View>
 
 
-{/* ========================================== */}
-{/* MOTORISTA */}
-{/* ========================================== */}
-
 <Text style={styles.info}>
 👤 {item.motorista || '-'}
 </Text>
-
-
-{/* ========================================== */}
-{/* DATA */}
-{/* ========================================== */}
 
 <Text style={styles.info}>
 📅 {item.dataOcorrencia || '-'}
 </Text>
 
-
-{/* ========================================== */}
-{/* LOCAL */}
-{/* ========================================== */}
-
 <Text style={styles.info}>
 📍 {item.local || '-'}
 </Text>
 
-
-{/* ========================================== */}
-{/* SEVERIDADE */}
-{/* ========================================== */}
 
 <View
 style={[
@@ -405,10 +771,6 @@ corSeveridade(item.severidade)
 
 </View>
 
-
-{/* ========================================== */}
-{/* DETALHES */}
-{/* ========================================== */}
 
 <TouchableOpacity
 style={styles.botaoDetalhes}
@@ -433,8 +795,16 @@ Ver detalhes
 
 <View style={styles.vazio}>
 
+<Text style={styles.vazioEmoji}>
+🚨
+</Text>
+
+<Text style={styles.vazioTitulo}>
+Nenhuma ocorrência encontrada
+</Text>
+
 <Text style={styles.vazioTexto}>
-Nenhum sinistro encontrado
+Tente alterar os filtros ou registrar um novo sinistro.
 </Text>
 
 </View>
@@ -473,7 +843,7 @@ backgroundColor:'#F3F5F8'
 },
 
 titulo:{
-fontSize:36,
+fontSize:28,
 fontWeight:'bold',
 color:'#E53935'
 },
@@ -482,31 +852,123 @@ sub:{
 fontSize:16,
 color:'#666',
 marginTop:6,
-marginBottom:25
+marginBottom:18
+},
+
+cardsRow:{
+flexDirection:'row',
+justifyContent:'space-between',
+marginBottom:20,
+gap:10
+},
+
+cardInfo:{
+flex:1,
+paddingVertical:14,
+paddingHorizontal:10,
+borderRadius:22,
+alignItems:'center'
+},
+
+cardNumero:{
+fontSize:28,
+fontWeight:'bold',
+color:'#fff'
+},
+
+cardTexto:{
+color:'#fff',
+fontWeight:'bold',
+marginTop:5,
+fontSize:13
+},
+
+cardTextoDark:{
+color:'#333',
+fontWeight:'bold',
+marginTop:5,
+fontSize:13
 },
 
 inputBusca:{
 backgroundColor:'#fff',
 height:58,
-borderRadius:16,
+borderRadius:18,
 paddingHorizontal:18,
 fontSize:16,
-marginBottom:22,
+marginBottom:15,
 color:'#111'
+},
+
+datasRow:{
+flexDirection:'row',
+gap:10,
+marginBottom:15
+},
+
+inputData:{
+flex:1,
+backgroundColor:'#fff',
+height:58,
+borderRadius:18,
+paddingHorizontal:18,
+fontSize:16,
+color:'#111'
+},
+
+filtrosRow:{
+marginBottom:14
+},
+
+filtroBtn:{
+backgroundColor:'#fff',
+paddingHorizontal:18,
+paddingVertical:12,
+borderRadius:16,
+marginRight:10
+},
+
+filtroAtivo:{
+backgroundColor:'#021B49'
+},
+
+filtroTexto:{
+fontWeight:'bold',
+color:'#555',
+textTransform:'capitalize',
+fontSize:15
+},
+
+filtroTextoAtivo:{
+color:'#fff'
 },
 
 card:{
 backgroundColor:'#fff',
-padding:20,
-borderRadius:22,
-marginBottom:18
+padding:22,
+borderRadius:28,
+marginBottom:18,
+
+shadowColor:'#000',
+
+shadowOffset:{
+width:0,
+height:4
+},
+
+shadowOpacity:0.08,
+
+shadowRadius:8,
+
+elevation:3
+
 },
 
 topo:{
 flexDirection:'row',
 justifyContent:'space-between',
 alignItems:'center',
-marginBottom:15
+marginBottom:18
 },
 
 placa:{
@@ -516,62 +978,79 @@ color:'#111'
 },
 
 status:{
-paddingHorizontal:12,
-paddingVertical:6,
-borderRadius:10
+paddingHorizontal:16,
+paddingVertical:8,
+borderRadius:12
 },
 
 statusTexto:{
 color:'#fff',
 fontWeight:'bold',
-textTransform:'uppercase'
+textTransform:'uppercase',
+fontSize:13
 },
 
 info:{
-fontSize:16,
+fontSize:17,
 color:'#444',
 marginBottom:10
 },
 
 severidade:{
 alignSelf:'flex-start',
-paddingHorizontal:15,
-paddingVertical:8,
-borderRadius:12,
-marginTop:5
+paddingHorizontal:16,
+paddingVertical:10,
+borderRadius:14,
+marginTop:8
 },
 
 severidadeTexto:{
 color:'#fff',
 fontWeight:'bold',
-textTransform:'uppercase'
+textTransform:'uppercase',
+fontSize:13
 },
 
 botaoDetalhes:{
-backgroundColor:'#0A1E40',
-height:52,
-borderRadius:14,
+backgroundColor:'#021B49',
+height:58,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
-marginTop:20
+marginTop:22
 },
 
 botaoTexto:{
 color:'#fff',
 fontWeight:'bold',
-fontSize:17
+fontSize:18
 },
 
 vazio:{
 backgroundColor:'#fff',
-padding:30,
-borderRadius:20,
-alignItems:'center'
+padding:40,
+borderRadius:28,
+alignItems:'center',
+marginTop:20
+},
+
+vazioEmoji:{
+fontSize:52,
+marginBottom:10
+},
+
+vazioTitulo:{
+fontSize:22,
+fontWeight:'bold',
+color:'#111',
+marginBottom:10
 },
 
 vazioTexto:{
-fontSize:16,
-color:'#777'
+fontSize:15,
+color:'#777',
+textAlign:'center',
+lineHeight:22
 }
 
 });

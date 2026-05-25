@@ -1,99 +1,83 @@
-import React from 'react';
+import React,{
+useState,
+useContext
+} from 'react';
 
 import {
 View,
 Text,
 StyleSheet,
 ScrollView,
+Image,
 TouchableOpacity,
+TextInput,
 Alert
 } from 'react-native';
+
+import {
+doc,
+updateDoc
+} from 'firebase/firestore';
+
+import {
+db
+} from '../services/firebase';
+
+import {
+AuthContext
+} from '../context/AuthContext';
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 
-export default function DetalhesChecklistScreen({ route }) {
+export default function DetalhesSinistroScreen({
 
-const { checklist } = route.params;
+route,
+navigation
 
+}){
 
-// ==========================================
-// DATA
-// ==========================================
+const{
+usuario
+}=useContext(AuthContext);
 
-function formatarData(data){
-
-if(!data) return '';
-
-if(data.seconds){
-
-return new Date(
-data.seconds * 1000
-).toLocaleString('pt-BR');
-
-}
-
-return new Date(data)
-.toLocaleString('pt-BR');
-
-}
+const podeEditar =
+usuario?.nivel === 'admin' ||
+usuario?.nivel === 'supervisor';
 
 
 // ==========================================
 // DADOS
 // ==========================================
 
-const placa =
-checklist.veiculo?.placa ||
-checklist.placa ||
-'-';
-
-const marca =
-checklist.veiculo?.marca ||
-'';
-
-const modelo =
-checklist.veiculo?.modelo ||
-'';
-
-const motorista =
-
-typeof checklist.usuario === 'object'
-? checklist.usuario?.nome || '-'
-: checklist.usuario || '-';
+const{
+sinistro
+}=route.params;
 
 
 // ==========================================
-// STATUS
+// STATES
 // ==========================================
 
-const respostas =
-Object.entries(
-checklist.respostas || {}
+const[
+status,
+setStatus
+]=useState(
+sinistro?.status || 'aberto'
 );
 
-const totalOk =
-respostas.filter(
-([,v]) => v === 'ok'
-).length;
+const[
+observacoes,
+setObservacoes
+]=useState(
+sinistro?.observacoes || ''
+);
 
-const totalAlerta =
-respostas.filter(
-([,v]) => v === 'alerta'
-).length;
-
-const totalNc =
-respostas.filter(
-([,v]) =>
-v === 'ruim' ||
-v === 'nc'
-).length;
-
-const totalNa =
-respostas.filter(
-([,v]) => v === 'na'
-).length;
+const[
+loading,
+setLoading
+]=useState(false);
 
 
 // ==========================================
@@ -134,32 +118,11 @@ async function gerarPDF(){
 
 try{
 
-const imagensHtml=[];
+let fotosHtml='';
 
-const avarias=[];
+for(const foto of sinistro?.fotos || []){
 
-
-// ==========================================
-// FOTOS
-// ==========================================
-
-for(const item in checklist.fotos || {}){
-
-const fotos =
-
-Array.isArray(
-checklist.fotos[item]
-)
-
-? checklist.fotos[item]
-
-: [checklist.fotos[item]];
-
-for(const foto of fotos){
-
-if(!foto) continue;
-
-let imagem = foto;
+let imagem=foto;
 
 if(
 foto.startsWith('file:')
@@ -170,9 +133,7 @@ await imagemParaBase64(foto);
 
 }
 
-if(imagem){
-
-imagensHtml.push(`
+fotosHtml += `
 
 <div class="foto-card">
 
@@ -181,136 +142,63 @@ src="${imagem}"
 class="foto"
 />
 
-<div class="foto-legenda">
-${item}
 </div>
-
-</div>
-
-`);
-
-}
-
-}
-
-}
-
-
-// ==========================================
-// AVARIAS
-// ==========================================
-
-respostas.forEach(([item,status])=>{
-
-if(
-status === 'alerta' ||
-status === 'ruim' ||
-status === 'nc'
-){
-
-avarias.push(`
-
-<div class="avaria-item">
-
-<div class="avaria-badge">
-${status.toUpperCase()}
-</div>
-
-<div class="avaria-texto">
-${item}
-</div>
-
-</div>
-
-`);
-
-}
-
-});
-
-
-// ==========================================
-// COLUNAS
-// ==========================================
-
-const metade =
-Math.ceil(
-respostas.length / 2
-);
-
-const coluna1 =
-respostas.slice(0, metade);
-
-const coluna2 =
-respostas.slice(metade);
-
-
-// ==========================================
-// LINHAS
-// ==========================================
-
-function renderLinha(
-[item,status],
-index
-){
-
-let classe='ok';
-let texto='OK';
-
-if(status==='alerta'){
-
-classe='alerta';
-texto='ATENÇÃO';
-
-}
-
-if(
-status==='ruim' ||
-status==='nc'
-){
-
-classe='nc';
-texto='N/C';
-
-}
-
-if(status==='na'){
-
-classe='na';
-texto='N/A';
-
-}
-
-return `
-
-<tr>
-
-<td class="numero">
-${index+1}
-</td>
-
-<td class="item">
-${item}
-</td>
-
-<td class="status">
-
-<span class="badge ${classe}">
-${texto}
-</span>
-
-</td>
-
-</tr>
 
 `;
 
 }
 
 
-// ==========================================
-// HTML
-// ==========================================
+function corStatusPdf(status){
+
+if(status==='aberto'){
+return '#E53935';
+}
+
+if(status==='analise'){
+return '#F2C94C';
+}
+
+if(status==='finalizado'){
+return '#2CC36B';
+}
+
+return '#999';
+
+}
+
+
+function corSeveridadePdf(severidade){
+
+if(severidade==='leve'){
+return '#F2C94C';
+}
+
+if(severidade==='moderado'){
+return '#F2994A';
+}
+
+if(severidade==='grave'){
+return '#E53935';
+}
+
+return '#999';
+
+}
+
+
+const qrPayload =
+encodeURIComponent(
+JSON.stringify({
+placa:sinistro?.placa,
+motorista:sinistro?.motorista,
+data:sinistro?.dataOcorrencia
+})
+);
+
+const qrUrl =
+`https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${qrPayload}`;
+
 
 const html = `
 
@@ -327,28 +215,26 @@ box-sizing:border-box;
 }
 
 @page{
-size:A4 landscape;
-margin:6px;
+size:A4;
+margin:10px;
 }
 
 body{
 
 font-family:Arial;
 
-background:#F1F5F9;
-
-margin:0;
+background:#F3F5F8;
 
 padding:0;
 
-color:#1E293B;
+margin:0;
 
-font-size:10px;
+color:#111;
 
 }
 
 .page{
-padding:6px;
+padding:10px;
 }
 
 
@@ -365,9 +251,9 @@ linear-gradient(
 #0B2D72
 );
 
-border-radius:16px;
+padding:18px;
 
-padding:12px 16px;
+border-radius:18px;
 
 display:flex;
 
@@ -377,418 +263,106 @@ align-items:center;
 
 color:#fff;
 
-margin-bottom:8px;
-
-}
-
-.header-left{
-display:flex;
-align-items:center;
-}
-
-.logo{
-
-width:60px;
-height:60px;
-
-background:#fff;
-
-border-radius:16px;
-
-display:flex;
-
-justify-content:center;
-
-align-items:center;
-
-font-size:34px;
-
-margin-right:14px;
-
-box-shadow:
-0 3px 8px rgba(0,0,0,0.15);
-
-}
-
-.empresa{
-
-font-size:14px;
-
-font-weight:bold;
-
-letter-spacing:1px;
-
-color:#93C5FD;
-
-margin-bottom:2px;
-
-text-transform:uppercase;
-
-}
-
-.header-info{
-
-font-size:10px;
-
-margin-bottom:4px;
-
-opacity:0.9;
+margin-bottom:12px;
 
 }
 
 .header-title{
-font-size:22px;
+font-size:28px;
 font-weight:bold;
 }
 
-.header-subtitle{
-font-size:10px;
+.header-sub{
+font-size:12px;
 opacity:0.8;
-margin-top:2px;
+margin-top:4px;
 }
 
 .header-right{
 text-align:right;
-font-size:10px;
 }
 
-.tipo{
+.badge{
 
-display:inline-block;
-
-margin-top:5px;
-
-background:#22C55E;
-
-padding:5px 12px;
-
-border-radius:7px;
-
-font-size:10px;
-
-font-weight:bold;
-
-}
-
-
-/* ====================================== */
-/* VEICULO */
-/* ====================================== */
-
-.veiculo{
-
-background:#fff;
-
-border-radius:16px;
-
-padding:12px;
-
-display:flex;
-
-justify-content:space-between;
-
-align-items:center;
-
-margin-bottom:8px;
-
-border:1px solid #E2E8F0;
-
-}
-
-.veiculo-left{
-display:flex;
-align-items:center;
-}
-
-.car{
-font-size:48px;
-margin-right:12px;
-}
-
-.placa{
-font-size:28px;
-font-weight:bold;
-color:#02112D;
-}
-
-.modelo{
-font-size:11px;
-margin-top:2px;
-color:#64748B;
-}
-
-.info-grid{
-display:flex;
-gap:14px;
-}
-
-.info-box{
-
-background:#F8FAFC;
-
-padding:8px 12px;
+padding:8px 14px;
 
 border-radius:10px;
 
-text-align:center;
+font-size:11px;
 
-min-width:95px;
-
-}
-
-.info-label{
-font-size:9px;
 font-weight:bold;
-color:#64748B;
-margin-bottom:2px;
-}
 
-.info-value{
-font-size:14px;
-font-weight:bold;
-color:#0F172A;
+color:#fff;
+
+display:inline-block;
+
+margin-top:6px;
+
 }
 
 
 /* ====================================== */
-/* STATUS */
+/* GRID */
 /* ====================================== */
 
-.cards{
+.grid{
 display:flex;
-gap:6px;
-margin-bottom:8px;
+gap:10px;
+margin-bottom:10px;
 }
 
 .card{
 
 flex:1;
 
-padding:10px;
-
-border-radius:12px;
-
-color:#fff;
-
-text-align:center;
-
-}
-
-.card.ok{
-background:#16A34A;
-}
-
-.card.alerta{
-background:#EAB308;
-color:#111827;
-}
-
-.card.nc{
-background:#DC2626;
-}
-
-.card.na{
-background:#64748B;
-}
-
-.card.total{
-background:#2563EB;
-}
-
-.card-title{
-font-size:9px;
-font-weight:bold;
-}
-
-.card-num{
-font-size:24px;
-font-weight:bold;
-margin-top:4px;
-}
-
-
-/* ====================================== */
-/* CONTENT */
-/* ====================================== */
-
-.content{
-display:flex;
-gap:8px;
-}
-
-.left{
-width:69%;
-}
-
-.right{
-width:31%;
-}
-
-
-/* ====================================== */
-/* BOX */
-/* ====================================== */
-
-.box{
-
 background:#fff;
 
-border-radius:14px;
+padding:14px;
 
-overflow:hidden;
-
-margin-bottom:8px;
-
-border:1px solid #E2E8F0;
+border-radius:16px;
 
 }
 
-.box-header{
-
-background:#0B2D72;
-
-padding:8px 10px;
+.label{
 
 font-size:11px;
 
 font-weight:bold;
 
-color:#fff;
-
-}
-
-.box-content{
-padding:8px;
-}
-
-
-/* ====================================== */
-/* CHECKLIST */
-/* ====================================== */
-
-.duas-colunas{
-display:flex;
-gap:8px;
-}
-
-.duas-colunas table{
-width:50%;
-border-collapse:collapse;
-}
-
-tr:nth-child(even){
-background:#F8FAFC;
-}
-
-td{
-padding:5px;
-font-size:9px;
-border-bottom:1px solid #EDF2F7;
-}
-
-.numero{
-width:24px;
-font-weight:bold;
-color:#64748B;
-}
-
-.item{
-font-weight:bold;
-color:#0F172A;
-}
-
-.status{
-width:60px;
-text-align:center;
-}
-
-.badge{
-
-display:inline-block;
-
-padding:4px 6px;
-
-border-radius:6px;
-
-font-size:8px;
-
-font-weight:bold;
-
-min-width:50px;
-
-color:#fff;
-
-}
-
-.badge.ok{
-background:#16A34A;
-}
-
-.badge.alerta{
-background:#EAB308;
-color:#111827;
-}
-
-.badge.nc{
-background:#DC2626;
-}
-
-.badge.na{
-background:#64748B;
-}
-
-
-/* ====================================== */
-/* AVARIAS */
-/* ====================================== */
-
-.avaria-item{
-
-display:flex;
-
-align-items:center;
-
-justify-content:space-between;
-
-padding:8px;
-
-background:#FEF2F2;
-
-border-radius:10px;
+color:#666;
 
 margin-bottom:6px;
 
-border-left:4px solid #DC2626;
-
 }
 
-.avaria-badge{
+.valor{
 
-background:#DC2626;
-
-color:#fff;
-
-padding:4px 8px;
-
-border-radius:6px;
-
-font-size:8px;
+font-size:18px;
 
 font-weight:bold;
 
+color:#111;
+
 }
 
-.avaria-texto{
 
-font-size:9px;
+/* ====================================== */
+/* DESCRIÇÃO */
+/* ====================================== */
 
-font-weight:bold;
+.descricao{
 
-color:#7F1D1D;
+background:#fff;
 
-margin-left:8px;
+padding:16px;
 
-flex:1;
+border-radius:16px;
+
+margin-bottom:12px;
+
+line-height:22px;
+
+font-size:14px;
 
 }
 
@@ -797,10 +371,16 @@ flex:1;
 /* FOTOS */
 /* ====================================== */
 
-.foto-grid{
+.fotos{
+
 display:flex;
+
 flex-wrap:wrap;
-gap:6px;
+
+gap:8px;
+
+margin-bottom:14px;
+
 }
 
 .foto-card{
@@ -811,79 +391,11 @@ width:48%;
 
 width:100%;
 
-height:82px;
+height:180px;
 
 object-fit:cover;
 
-border-radius:10px;
-
-border:2px solid #E2E8F0;
-
-}
-
-.foto-legenda{
-
-font-size:8px;
-
-font-weight:bold;
-
-margin-top:3px;
-
-text-align:center;
-
-color:#334155;
-
-}
-
-
-/* ====================================== */
-/* OBS */
-/* ====================================== */
-
-.obs{
-
-background:#FFF8E7;
-
-padding:10px;
-
-border-radius:10px;
-
-font-size:9px;
-
-line-height:14px;
-
-color:#334155;
-
-}
-
-
-/* ====================================== */
-/* ASS */
-/* ====================================== */
-
-.assinaturas{
-display:flex;
-justify-content:space-between;
-margin-top:6px;
-}
-
-.ass{
-width:45%;
-text-align:center;
-}
-
-.ass-line{
-
-border-top:
-1px solid #64748B;
-
-padding-top:5px;
-
-margin-top:18px;
-
-font-size:9px;
-
-font-weight:bold;
+border-radius:14px;
 
 }
 
@@ -894,14 +406,37 @@ font-weight:bold;
 
 .footer{
 
-margin-top:4px;
+display:flex;
 
+justify-content:space-between;
+
+align-items:flex-end;
+
+margin-top:20px;
+
+}
+
+.ass{
+width:40%;
 text-align:center;
+}
 
-font-size:8px;
+.linha{
 
-color:#64748B;
+border-top:
+1px solid #999;
 
+margin-top:40px;
+
+padding-top:8px;
+
+font-size:12px;
+
+}
+
+.qr{
+width:90px;
+height:90px;
 }
 
 </style>
@@ -915,113 +450,66 @@ color:#64748B;
 
 <!-- HEADER -->
 
-<!-- HEADER -->
-
 <div class="header">
-
-<div class="header-left">
-
-<div class="logo">
-🚛
-</div>
 
 <div>
 
-<div class="empresa">
-${checklist.empresaNome || 'SIS CONNECT'}
-</div>
-
 <div class="header-title">
-SIS CHECKLIST
+🚨 SINISTRO
 </div>
 
-<div class="header-subtitle">
-RELATÓRIO PROFISSIONAL DE INSPEÇÃO VEICULAR
-</div>
-
+<div class="header-sub">
+Relatório operacional de ocorrência
 </div>
 
 </div>
 
 <div class="header-right">
 
-<div class="header-info">
-📅 ${formatarData(checklist.data)}
-</div>
-
-<div class="header-info">
-🆔 ${checklist.id || '-'}
-</div>
-
-<div class="tipo">
-${checklist.tipoExecucao || 'SAÍDA'}
-</div>
-
-</div>
-
-</div>
-
-
-<!-- VEICULO -->
-
-<div class="veiculo">
-
-<div class="veiculo-left">
-
-<div class="car">
-🚘
-</div>
-
 <div>
-
-<div class="placa">
-${placa}
+📅 ${sinistro?.dataOcorrencia || '-'}
 </div>
 
-<div class="modelo">
-${marca} ${modelo}
-</div>
+<div
+class="badge"
+style="
+background:${corStatusPdf(status)}
+"
+>
+
+${String(status).toUpperCase()}
 
 </div>
 
 </div>
 
-<div class="info-grid">
+</div>
 
-<div class="info-box">
 
-<div class="info-label">
+<!-- GRID -->
+
+<div class="grid">
+
+<div class="card">
+
+<div class="label">
+PLACA
+</div>
+
+<div class="valor">
+${sinistro?.placa || '-'}
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="label">
 MOTORISTA
 </div>
 
-<div class="info-value">
-${motorista}
-</div>
-
-</div>
-
-<div class="info-box">
-
-<div class="info-label">
-KM
-</div>
-
-<div class="info-value">
-${checklist.km || 0}
-</div>
-
-</div>
-
-<div class="info-box">
-
-<div class="info-label">
-TIPO
-</div>
-
-<div class="info-value">
-${checklist.tipoExecucao || '-'}
-</div>
-
+<div class="valor">
+${sinistro?.motorista || '-'}
 </div>
 
 </div>
@@ -1029,117 +517,36 @@ ${checklist.tipoExecucao || '-'}
 </div>
 
 
-<!-- STATUS -->
+<div class="grid">
 
-<div class="cards">
+<div class="card">
 
-<div class="card ok">
-
-<div class="card-title">
-OK
+<div class="label">
+LOCAL
 </div>
 
-<div class="card-num">
-${totalOk}
-</div>
-
-</div>
-
-<div class="card alerta">
-
-<div class="card-title">
-ATENÇÃO
-</div>
-
-<div class="card-num">
-${totalAlerta}
+<div class="valor">
+${sinistro?.local || '-'}
 </div>
 
 </div>
 
-<div class="card nc">
+<div class="card">
 
-<div class="card-title">
-N/C
+<div class="label">
+SEVERIDADE
 </div>
 
-<div class="card-num">
-${totalNc}
-</div>
+<div
+class="badge"
+style="
+background:${corSeveridadePdf(
+sinistro?.severidade
+)}
+"
+>
 
-</div>
-
-<div class="card na">
-
-<div class="card-title">
-N/A
-</div>
-
-<div class="card-num">
-${totalNa}
-</div>
-
-</div>
-
-<div class="card total">
-
-<div class="card-title">
-TOTAL
-</div>
-
-<div class="card-num">
-${respostas.length}
-</div>
-
-</div>
-
-</div>
-
-
-<!-- CONTENT -->
-
-<div class="content">
-
-
-<!-- LEFT -->
-
-<div class="left">
-
-<div class="box">
-
-<div class="box-header">
-✔ CHECKLIST COMPLETO
-</div>
-
-<div class="box-content">
-
-<div class="duas-colunas">
-
-<table>
-
-${coluna1.map(
-(item,index)=>
-renderLinha(
-item,
-index
-)
-).join('')}
-
-</table>
-
-<table>
-
-${coluna2.map(
-(item,index)=>
-renderLinha(
-item,
-index + metade
-)
-).join('')}
-
-</table>
-
-</div>
+${sinistro?.severidade || '-'}
 
 </div>
 
@@ -1148,112 +555,63 @@ index + metade
 </div>
 
 
-<!-- RIGHT -->
+<!-- DESCRIÇÃO -->
 
-<div class="right">
+<div class="descricao">
 
-
-<!-- AVARIAS -->
-
-<div class="box">
-
-<div class="box-header">
-🚨 AVARIAS
-</div>
-
-<div class="box-content">
-
-${avarias.join('') || 'Nenhuma avaria encontrada'}
-
-</div>
+${sinistro?.descricao || '-'}
 
 </div>
 
 
 <!-- FOTOS -->
 
-<div class="box">
+<div class="fotos">
 
-<div class="box-header">
-📸 FOTOS
-</div>
-
-<div class="box-content">
-
-<div class="foto-grid">
-
-${imagensHtml.join('') || 'Sem fotos'}
-
-</div>
-
-</div>
+${fotosHtml}
 
 </div>
 
 
-<!-- OBS -->
+<!-- OBSERVAÇÕES -->
 
-<div class="box">
+<div class="descricao">
 
-<div class="box-header">
-📝 OBSERVAÇÕES
-</div>
+<b>Observações:</b><br/><br/>
 
-<div class="box-content">
-
-<div class="obs">
-
-${checklist.observacaoGeral || 'Sem observações'}
-
-</div>
-
-</div>
+${observacoes || 'Sem observações'}
 
 </div>
 
 
-<!-- ASS -->
+<!-- FOOTER -->
 
-<div class="box">
-
-<div class="box-header">
-✍ ASSINATURAS
-</div>
-
-<div class="box-content">
-
-<div class="assinaturas">
+<div class="footer">
 
 <div class="ass">
 
-<div class="ass-line">
+<div class="linha">
 Motorista
 </div>
 
 </div>
 
+<div>
+
+<img
+src="${qrUrl}"
+class="qr"
+/>
+
+</div>
+
 <div class="ass">
 
-<div class="ass-line">
+<div class="linha">
 Supervisor
 </div>
 
 </div>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-
-<div class="footer">
-
-Documento gerado automaticamente pelo SIS CHECKLIST
 
 </div>
 
@@ -1266,19 +624,10 @@ Documento gerado automaticamente pelo SIS CHECKLIST
 `;
 
 
-// ==========================================
-// PDF
-// ==========================================
-
 const { uri } =
 await Print.printToFileAsync({
 html
 });
-
-
-// ==========================================
-// SHARE
-// ==========================================
 
 await Sharing.shareAsync(uri);
 
@@ -1297,52 +646,467 @@ Alert.alert(
 
 
 // ==========================================
-// SCREEN
+// SALVAR
+// ==========================================
+
+async function salvarAtualizacao(){
+
+if(!podeEditar){
+
+Alert.alert(
+'Acesso negado',
+'Somente admin ou supervisor pode atualizar sinistros'
+);
+
+return;
+
+}
+
+try{
+
+setLoading(true);
+
+await updateDoc(
+
+doc(
+db,
+'sinistros',
+sinistro.id
+),
+
+{
+
+empresaId:
+sinistro.empresaId || usuario?.empresaId || 'default',
+
+status,
+observacoes
+
+}
+
+);
+
+Alert.alert(
+'Sucesso',
+'Sinistro atualizado'
+);
+
+navigation.goBack();
+
+}catch(e){
+
+console.log(e);
+
+Alert.alert(
+'Erro',
+'Erro ao atualizar sinistro'
+);
+
+}finally{
+
+setLoading(false);
+
+}
+
+}
+
+
+// ==========================================
+// COR STATUS
+// ==========================================
+
+function corStatus(valor){
+
+if(valor==='aberto'){
+
+return '#E53935';
+
+}
+
+if(valor==='analise'){
+
+return '#F2C94C';
+
+}
+
+if(valor==='finalizado'){
+
+return '#2CC36B';
+
+}
+
+return '#999';
+
+}
+
+
+// ==========================================
+// COR SEVERIDADE
+// ==========================================
+
+function corSeveridade(valor){
+
+if(valor==='leve'){
+
+return '#F2C94C';
+
+}
+
+if(valor==='moderado'){
+
+return '#F2994A';
+
+}
+
+if(valor==='grave'){
+
+return '#E53935';
+
+}
+
+return '#999';
+
+}
+
+
+// ==========================================
+// RENDER
 // ==========================================
 
 return(
 
-<View style={styles.container}>
-
-<ScrollView>
+<ScrollView
+style={styles.container}
+showsVerticalScrollIndicator={false}
+contentContainerStyle={{
+paddingBottom:120
+}}
+>
 
 <View style={styles.content}>
 
+
 <Text style={styles.titulo}>
-Detalhes Checklist
+🚨 Detalhes do Sinistro
 </Text>
 
-<View style={styles.cardTopo}>
-
-<Text style={styles.placa}>
-🚗 {placa}
+<Text style={styles.sub}>
+Gestão operacional da ocorrência
 </Text>
 
-<Text style={styles.modelo}>
-{marca} {modelo}
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Placa
 </Text>
 
-<Text style={styles.info}>
-👤 {motorista}
-</Text>
-
-<Text style={styles.info}>
-📋 {checklist.tipoExecucao || '-'}
-</Text>
-
-<Text style={styles.info}>
-🛣️ KM: {checklist.km || 0}
+<Text style={styles.valor}>
+🚗 {sinistro?.placa || '-'}
 </Text>
 
 </View>
 
-<TouchableOpacity
-style={styles.pdfBtn}
-onPress={gerarPDF}
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Motorista
+</Text>
+
+<Text style={styles.valor}>
+👤 {sinistro?.motorista || '-'}
+</Text>
+
+</View>
+
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Data
+</Text>
+
+<Text style={styles.valor}>
+📅 {sinistro?.dataOcorrencia || '-'}
+</Text>
+
+</View>
+
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Local
+</Text>
+
+<Text style={styles.valor}>
+📍 {sinistro?.local || '-'}
+</Text>
+
+</View>
+
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Descrição
+</Text>
+
+<Text style={styles.texto}>
+{sinistro?.descricao || '-'}
+</Text>
+
+</View>
+
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Severidade
+</Text>
+
+<View
+style={[
+
+styles.badge,
+
+{
+backgroundColor:
+corSeveridade(
+sinistro?.severidade
+)
+}
+
+]}
 >
 
-<Text style={styles.pdfTexto}>
-📄 GERAR PDF
+<Text style={styles.badgeTexto}>
+{sinistro?.severidade || '-'}
+</Text>
+
+</View>
+
+</View>
+
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Status
+</Text>
+
+
+<View style={styles.statusRow}>
+
+
+<TouchableOpacity
+
+style={[
+
+styles.statusBtn,
+
+{
+backgroundColor:
+'#E53935'
+},
+
+status==='aberto'
+&& styles.statusAtivo
+
+]}
+
+onPress={()=>
+setStatus('aberto')
+}
+
+>
+
+<Text style={styles.statusTexto}>
+Aberto
+</Text>
+
+</TouchableOpacity>
+
+
+<TouchableOpacity
+
+style={[
+
+styles.statusBtn,
+
+{
+backgroundColor:
+'#F2C94C'
+},
+
+status==='analise'
+&& styles.statusAtivo
+
+]}
+
+onPress={()=>
+setStatus('analise')
+}
+
+>
+
+<Text style={styles.statusTexto}>
+Análise
+</Text>
+
+</TouchableOpacity>
+
+
+<TouchableOpacity
+
+style={[
+
+styles.statusBtn,
+
+{
+backgroundColor:
+'#2CC36B'
+},
+
+status==='finalizado'
+&& styles.statusAtivo
+
+]}
+
+onPress={()=>
+setStatus('finalizado')
+}
+
+>
+
+<Text style={styles.statusTexto}>
+Finalizado
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+
+<View
+style={[
+
+styles.statusAtual,
+
+{
+backgroundColor:
+corStatus(status)
+}
+
+]}
+>
+
+<Text style={styles.statusAtualTexto}>
+{status}
+</Text>
+
+</View>
+
+</View>
+
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Observações da Oficina
+</Text>
+
+<TextInput
+
+style={styles.input}
+
+multiline
+
+placeholder="Adicionar observações"
+
+placeholderTextColor="#777"
+
+value={observacoes}
+
+onChangeText={setObservacoes}
+
+/>
+
+</View>
+
+
+{!!sinistro?.fotos?.length &&(
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Fotos
+</Text>
+
+{sinistro.fotos.map((foto,index)=>(
+
+<Image
+key={index}
+source={{uri:foto}}
+style={styles.imagem}
+/>
+
+))}
+
+</View>
+
+)}
+
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Registrado por
+</Text>
+
+<Text style={styles.valor}>
+👤 {sinistro?.usuario?.nome || '-'}
+</Text>
+
+<Text style={styles.info}>
+{sinistro?.usuario?.cargo || '-'}
+</Text>
+
+</View>
+
+
+<TouchableOpacity
+
+style={styles.botaoPdf}
+
+onPress={gerarPDF}
+
+>
+
+<Text style={styles.botaoTexto}>
+📄 Gerar PDF
+</Text>
+
+</TouchableOpacity>
+
+
+<TouchableOpacity
+
+style={styles.botaoSalvar}
+
+onPress={salvarAtualizacao}
+
+disabled={loading}
+
+>
+
+<Text style={styles.botaoTexto}>
+
+{loading
+? 'Salvando...'
+: 'Salvar Atualização'}
+
 </Text>
 
 </TouchableOpacity>
@@ -1351,89 +1115,160 @@ onPress={gerarPDF}
 
 </ScrollView>
 
-</View>
-
 )
 
 }
 
 
-const styles = StyleSheet.create({
+const styles=StyleSheet.create({
 
 container:{
 flex:1,
-backgroundColor:'#F1F5F9'
+backgroundColor:'#F3F5F8'
 },
 
 content:{
-padding:20
+padding:20,
+paddingTop:50,
+width:'100%',
+maxWidth:700,
+alignSelf:'center'
 },
 
 titulo:{
-fontSize:32,
+fontSize:34,
 fontWeight:'bold',
-marginTop:50,
-marginBottom:20,
-color:'#02112D'
+color:'#E53935'
 },
 
-cardTopo:{
+sub:{
+fontSize:16,
+color:'#666',
+marginTop:6,
+marginBottom:25
+},
 
+card:{
 backgroundColor:'#fff',
-
 padding:20,
-
-borderRadius:18,
-
-shadowColor:'#000',
-
-shadowOpacity:0.05,
-
-shadowRadius:8,
-
-elevation:3
-
+borderRadius:22,
+marginBottom:18
 },
 
-placa:{
-fontSize:32,
+label:{
+fontSize:18,
 fontWeight:'bold',
-marginBottom:10,
-color:'#02112D'
+marginBottom:12,
+color:'#111'
 },
 
-modelo:{
-fontSize:20,
-marginBottom:15,
-color:'#64748B'
+valor:{
+fontSize:18,
+color:'#333'
+},
+
+texto:{
+fontSize:16,
+lineHeight:24,
+color:'#444'
+},
+
+badge:{
+alignSelf:'flex-start',
+paddingHorizontal:16,
+paddingVertical:10,
+borderRadius:12
+},
+
+badgeTexto:{
+color:'#fff',
+fontWeight:'bold',
+textTransform:'uppercase'
+},
+
+statusRow:{
+flexDirection:'row',
+justifyContent:'space-between',
+gap:10
+},
+
+statusBtn:{
+flex:1,
+height:52,
+borderRadius:14,
+justifyContent:'center',
+alignItems:'center',
+opacity:0.5
+},
+
+statusAtivo:{
+opacity:1
+},
+
+statusTexto:{
+color:'#fff',
+fontWeight:'bold'
+},
+
+statusAtual:{
+marginTop:18,
+padding:14,
+borderRadius:14,
+alignItems:'center'
+},
+
+statusAtualTexto:{
+color:'#fff',
+fontWeight:'bold',
+fontSize:16,
+textTransform:'uppercase'
+},
+
+input:{
+backgroundColor:'#F7F7F7',
+borderRadius:16,
+padding:18,
+minHeight:140,
+fontSize:16,
+textAlignVertical:'top',
+color:'#111'
+},
+
+imagem:{
+width:'100%',
+height:240,
+borderRadius:16,
+marginBottom:15
 },
 
 info:{
-fontSize:16,
-marginBottom:8,
-color:'#334155'
+marginTop:8,
+fontSize:15,
+color:'#666'
 },
 
-pdfBtn:{
-
-backgroundColor:'#02112D',
-
-height:58,
-
+botaoPdf:{
+backgroundColor:'#0A1E40',
+height:60,
 borderRadius:16,
-
 justifyContent:'center',
-
 alignItems:'center',
-
-marginTop:25
-
+marginBottom:15
 },
 
-pdfTexto:{
+botaoSalvar:{
+backgroundColor:'#E53935',
+height:60,
+borderRadius:16,
+justifyContent:'center',
+alignItems:'center',
+marginBottom:60
+},
+
+botaoTexto:{
 color:'#fff',
-fontSize:18,
-fontWeight:'bold'
+fontWeight:'bold',
+fontSize:18
 }
 
 });
