@@ -19,7 +19,7 @@ const { checklist } = route.params;
 
 
 // ==========================================
-// FORMATAR DATA
+// DATA
 // ==========================================
 
 function formatarData(data){
@@ -41,7 +41,7 @@ return new Date(data)
 
 
 // ==========================================
-// VEICULO
+// DADOS
 // ==========================================
 
 const placa =
@@ -56,6 +56,44 @@ checklist.veiculo?.marca ||
 const modelo =
 checklist.veiculo?.modelo ||
 '';
+
+const motorista =
+
+typeof checklist.usuario === 'object'
+? checklist.usuario?.nome || '-'
+: checklist.usuario || '-';
+
+
+// ==========================================
+// STATUS
+// ==========================================
+
+const respostas =
+Object.entries(
+checklist.respostas || {}
+);
+
+const totalOk =
+respostas.filter(
+([,v]) => v === 'ok'
+).length;
+
+const totalAlerta =
+respostas.filter(
+([,v]) => v === 'alerta'
+).length;
+
+const totalNc =
+respostas.filter(
+([,v]) =>
+v === 'ruim' ||
+v === 'nc'
+).length;
+
+const totalNa =
+respostas.filter(
+([,v]) => v === 'na'
+).length;
 
 
 // ==========================================
@@ -98,6 +136,8 @@ try{
 
 const imagensHtml=[];
 
+const avarias=[];
+
 
 // ==========================================
 // FOTOS
@@ -119,7 +159,7 @@ for(const foto of fotos){
 
 if(!foto) continue;
 
-let imagem=foto;
+let imagem = foto;
 
 if(
 foto.startsWith('file:')
@@ -136,14 +176,14 @@ imagensHtml.push(`
 
 <div class="foto-card">
 
-<div class="foto-title">
-${item}
-</div>
-
 <img
 src="${imagem}"
 class="foto"
 />
+
+<div class="foto-legenda">
+${item}
+</div>
 
 </div>
 
@@ -152,6 +192,118 @@ class="foto"
 }
 
 }
+
+}
+
+
+// ==========================================
+// AVARIAS
+// ==========================================
+
+respostas.forEach(([item,status])=>{
+
+if(
+status === 'alerta' ||
+status === 'ruim' ||
+status === 'nc'
+){
+
+avarias.push(`
+
+<div class="avaria-item">
+
+<div class="avaria-badge">
+${status.toUpperCase()}
+</div>
+
+<div class="avaria-texto">
+${item}
+</div>
+
+</div>
+
+`);
+
+}
+
+});
+
+
+// ==========================================
+// COLUNAS
+// ==========================================
+
+const metade =
+Math.ceil(
+respostas.length / 2
+);
+
+const coluna1 =
+respostas.slice(0, metade);
+
+const coluna2 =
+respostas.slice(metade);
+
+
+// ==========================================
+// LINHAS
+// ==========================================
+
+function renderLinha(
+[item,status],
+index
+){
+
+let classe='ok';
+let texto='OK';
+
+if(status==='alerta'){
+
+classe='alerta';
+texto='ATENÇÃO';
+
+}
+
+if(
+status==='ruim' ||
+status==='nc'
+){
+
+classe='nc';
+texto='N/C';
+
+}
+
+if(status==='na'){
+
+classe='na';
+texto='N/A';
+
+}
+
+return `
+
+<tr>
+
+<td class="numero">
+${index+1}
+</td>
+
+<td class="item">
+${item}
+</td>
+
+<td class="status">
+
+<span class="badge ${classe}">
+${texto}
+</span>
+
+</td>
+
+</tr>
+
+`;
 
 }
 
@@ -176,37 +328,54 @@ box-sizing:border-box;
 
 @page{
 size:A4 landscape;
-margin:8px;
+margin:6px;
 }
 
 body{
+
 font-family:Arial;
-background:#F4F6FA;
+
+background:#F1F5F9;
+
 margin:0;
+
 padding:0;
+
 color:#1E293B;
+
 font-size:10px;
+
 }
 
 .page{
-width:100%;
+padding:6px;
 }
+
+
+/* ====================================== */
+/* HEADER */
+/* ====================================== */
 
 .header{
 
-background:#0B1F52;
+background:
+linear-gradient(
+135deg,
+#02112D,
+#0B2D72
+);
 
-color:#fff;
+border-radius:16px;
 
-padding:10px 14px;
-
-border-radius:10px;
+padding:12px 16px;
 
 display:flex;
 
 justify-content:space-between;
 
 align-items:center;
+
+color:#fff;
 
 margin-bottom:8px;
 
@@ -218,18 +387,63 @@ align-items:center;
 }
 
 .logo{
-font-size:28px;
-margin-right:10px;
+
+width:60px;
+height:60px;
+
+background:#fff;
+
+border-radius:16px;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+font-size:34px;
+
+margin-right:14px;
+
+box-shadow:
+0 3px 8px rgba(0,0,0,0.15);
+
 }
 
-.title{
-font-size:18px;
+.empresa{
+
+font-size:14px;
+
+font-weight:bold;
+
+letter-spacing:1px;
+
+color:#93C5FD;
+
+margin-bottom:2px;
+
+text-transform:uppercase;
+
+}
+
+.header-info{
+
+font-size:10px;
+
+margin-bottom:4px;
+
+opacity:0.9;
+
+}
+
+.header-title{
+font-size:22px;
 font-weight:bold;
 }
 
-.subtitle{
+.header-subtitle{
 font-size:10px;
-opacity:0.9;
+opacity:0.8;
 margin-top:2px;
 }
 
@@ -240,27 +454,34 @@ font-size:10px;
 
 .tipo{
 
-background:#22C55E;
-
-padding:4px 10px;
-
-border-radius:6px;
-
-font-weight:bold;
-
 display:inline-block;
 
 margin-top:5px;
 
+background:#22C55E;
+
+padding:5px 12px;
+
+border-radius:7px;
+
+font-size:10px;
+
+font-weight:bold;
+
 }
+
+
+/* ====================================== */
+/* VEICULO */
+/* ====================================== */
 
 .veiculo{
 
 background:#fff;
 
-border-radius:10px;
+border-radius:16px;
 
-padding:10px;
+padding:12px;
 
 display:flex;
 
@@ -270,7 +491,7 @@ align-items:center;
 
 margin-bottom:8px;
 
-border:1px solid #DDE5EF;
+border:1px solid #E2E8F0;
 
 }
 
@@ -280,39 +501,58 @@ align-items:center;
 }
 
 .car{
-font-size:34px;
-margin-right:10px;
+font-size:48px;
+margin-right:12px;
 }
 
 .placa{
-font-size:20px;
+font-size:28px;
 font-weight:bold;
+color:#02112D;
 }
 
 .modelo{
 font-size:11px;
 margin-top:2px;
+color:#64748B;
 }
 
 .info-grid{
 display:flex;
-gap:18px;
+gap:14px;
 }
 
 .info-box{
-font-size:10px;
+
+background:#F8FAFC;
+
+padding:8px 12px;
+
+border-radius:10px;
+
+text-align:center;
+
+min-width:95px;
+
 }
 
 .info-label{
+font-size:9px;
 font-weight:bold;
 color:#64748B;
+margin-bottom:2px;
 }
 
 .info-value{
-font-size:13px;
+font-size:14px;
 font-weight:bold;
-margin-top:2px;
+color:#0F172A;
 }
+
+
+/* ====================================== */
+/* STATUS */
+/* ====================================== */
 
 .cards{
 display:flex;
@@ -324,48 +564,52 @@ margin-bottom:8px;
 
 flex:1;
 
-background:#fff;
+padding:10px;
 
-border-radius:8px;
+border-radius:12px;
 
-padding:8px;
+color:#fff;
 
 text-align:center;
 
-border-top:4px solid #ccc;
-
 }
 
-.card-ok{
-border-color:#22C55E;
+.card.ok{
+background:#16A34A;
 }
 
-.card-alerta{
-border-color:#FACC15;
+.card.alerta{
+background:#EAB308;
+color:#111827;
 }
 
-.card-nc{
-border-color:#EF4444;
+.card.nc{
+background:#DC2626;
 }
 
-.card-na{
-border-color:#9CA3AF;
+.card.na{
+background:#64748B;
 }
 
-.card-total{
-border-color:#3B82F6;
+.card.total{
+background:#2563EB;
 }
 
 .card-title{
-font-size:10px;
+font-size:9px;
 font-weight:bold;
-margin-bottom:3px;
 }
 
 .card-num{
-font-size:20px;
+font-size:24px;
 font-weight:bold;
+margin-top:4px;
 }
+
+
+/* ====================================== */
+/* CONTENT */
+/* ====================================== */
 
 .content{
 display:flex;
@@ -373,38 +617,43 @@ gap:8px;
 }
 
 .left{
-width:68%;
+width:69%;
 }
 
 .right{
-width:32%;
+width:31%;
 }
+
+
+/* ====================================== */
+/* BOX */
+/* ====================================== */
 
 .box{
 
 background:#fff;
 
-border-radius:10px;
+border-radius:14px;
 
 overflow:hidden;
 
-border:1px solid #DDE5EF;
-
 margin-bottom:8px;
+
+border:1px solid #E2E8F0;
 
 }
 
 .box-header{
 
-background:#0B1F52;
+background:#0B2D72;
 
-color:#fff;
+padding:8px 10px;
 
-padding:6px 10px;
-
-font-size:12px;
+font-size:11px;
 
 font-weight:bold;
+
+color:#fff;
 
 }
 
@@ -412,82 +661,141 @@ font-weight:bold;
 padding:8px;
 }
 
+
+/* ====================================== */
+/* CHECKLIST */
+/* ====================================== */
+
 .duas-colunas{
-
 display:flex;
-
-gap:10px;
-
+gap:8px;
 }
 
 .duas-colunas table{
-
 width:50%;
-
-}
-
-table{
-width:100%;
 border-collapse:collapse;
 }
 
-tr{
-border-bottom:1px solid #EDF2F7;
+tr:nth-child(even){
+background:#F8FAFC;
 }
 
 td{
-padding:4px;
+padding:5px;
 font-size:9px;
+border-bottom:1px solid #EDF2F7;
 }
 
 .numero{
-width:22px;
+width:24px;
 font-weight:bold;
+color:#64748B;
 }
 
 .item{
 font-weight:bold;
+color:#0F172A;
 }
 
 .status{
-text-align:center;
 width:60px;
+text-align:center;
 }
 
 .badge{
 
 display:inline-block;
 
-padding:3px 6px;
+padding:4px 6px;
 
-border-radius:5px;
+border-radius:6px;
 
 font-size:8px;
 
 font-weight:bold;
 
+min-width:50px;
+
 color:#fff;
 
-min-width:48px;
-
 }
 
-.ok{
-background:#22C55E;
+.badge.ok{
+background:#16A34A;
 }
 
-.alerta{
-background:#FACC15;
+.badge.alerta{
+background:#EAB308;
 color:#111827;
 }
 
-.nc{
-background:#EF4444;
+.badge.nc{
+background:#DC2626;
 }
 
-.na{
-background:#9CA3AF;
+.badge.na{
+background:#64748B;
 }
+
+
+/* ====================================== */
+/* AVARIAS */
+/* ====================================== */
+
+.avaria-item{
+
+display:flex;
+
+align-items:center;
+
+justify-content:space-between;
+
+padding:8px;
+
+background:#FEF2F2;
+
+border-radius:10px;
+
+margin-bottom:6px;
+
+border-left:4px solid #DC2626;
+
+}
+
+.avaria-badge{
+
+background:#DC2626;
+
+color:#fff;
+
+padding:4px 8px;
+
+border-radius:6px;
+
+font-size:8px;
+
+font-weight:bold;
+
+}
+
+.avaria-texto{
+
+font-size:9px;
+
+font-weight:bold;
+
+color:#7F1D1D;
+
+margin-left:8px;
+
+flex:1;
+
+}
+
+
+/* ====================================== */
+/* FOTOS */
+/* ====================================== */
 
 .foto-grid{
 display:flex;
@@ -499,32 +807,64 @@ gap:6px;
 width:48%;
 }
 
-.foto-title{
-font-size:9px;
-font-weight:bold;
-margin-bottom:3px;
+.foto{
+
+width:100%;
+
+height:82px;
+
+object-fit:cover;
+
+border-radius:10px;
+
+border:2px solid #E2E8F0;
+
 }
 
-.foto{
-width:100%;
-height:70px;
-object-fit:cover;
-border-radius:6px;
-border:1px solid #E5E7EB;
+.foto-legenda{
+
+font-size:8px;
+
+font-weight:bold;
+
+margin-top:3px;
+
+text-align:center;
+
+color:#334155;
+
 }
+
+
+/* ====================================== */
+/* OBS */
+/* ====================================== */
 
 .obs{
+
 background:#FFF8E7;
-padding:8px;
-border-radius:6px;
-line-height:14px;
+
+padding:10px;
+
+border-radius:10px;
+
 font-size:9px;
+
+line-height:14px;
+
+color:#334155;
+
 }
+
+
+/* ====================================== */
+/* ASS */
+/* ====================================== */
 
 .assinaturas{
 display:flex;
 justify-content:space-between;
-margin-top:15px;
+margin-top:6px;
 }
 
 .ass{
@@ -533,18 +873,35 @@ text-align:center;
 }
 
 .ass-line{
-border-top:1px solid #94A3B8;
-padding-top:4px;
-margin-top:20px;
+
+border-top:
+1px solid #64748B;
+
+padding-top:5px;
+
+margin-top:18px;
+
 font-size:9px;
+
 font-weight:bold;
+
 }
 
+
+/* ====================================== */
+/* FOOTER */
+/* ====================================== */
+
 .footer{
-margin-top:6px;
+
+margin-top:4px;
+
 text-align:center;
+
 font-size:8px;
+
 color:#64748B;
+
 }
 
 </style>
@@ -558,22 +915,28 @@ color:#64748B;
 
 <!-- HEADER -->
 
+<!-- HEADER -->
+
 <div class="header">
 
 <div class="header-left">
 
 <div class="logo">
-✅
+🚛
 </div>
 
 <div>
 
-<div class="title">
+<div class="empresa">
+${checklist.empresaNome || 'SIS CONNECT'}
+</div>
+
+<div class="header-title">
 SIS CHECKLIST
 </div>
 
-<div class="subtitle">
-RELATÓRIO DE INSPEÇÃO VEICULAR
+<div class="header-subtitle">
+RELATÓRIO PROFISSIONAL DE INSPEÇÃO VEICULAR
 </div>
 
 </div>
@@ -582,11 +945,11 @@ RELATÓRIO DE INSPEÇÃO VEICULAR
 
 <div class="header-right">
 
-<div>
+<div class="header-info">
 📅 ${formatarData(checklist.data)}
 </div>
 
-<div style="margin-top:3px;">
+<div class="header-info">
 🆔 ${checklist.id || '-'}
 </div>
 
@@ -626,34 +989,39 @@ ${marca} ${modelo}
 <div class="info-grid">
 
 <div class="info-box">
+
 <div class="info-label">
-Motorista
+MOTORISTA
 </div>
+
 <div class="info-value">
-${
-typeof checklist.usuario === 'object'
-? checklist.usuario?.nome || '-'
-: checklist.usuario || '-'
-}
+${motorista}
 </div>
+
 </div>
 
 <div class="info-box">
+
 <div class="info-label">
 KM
 </div>
+
 <div class="info-value">
 ${checklist.km || 0}
 </div>
+
 </div>
 
 <div class="info-box">
+
 <div class="info-label">
-Tipo
+TIPO
 </div>
+
 <div class="info-value">
 ${checklist.tipoExecucao || '-'}
 </div>
+
 </div>
 
 </div>
@@ -665,62 +1033,62 @@ ${checklist.tipoExecucao || '-'}
 
 <div class="cards">
 
-<div class="card card-ok">
+<div class="card ok">
 
 <div class="card-title">
 OK
 </div>
 
 <div class="card-num">
-${Object.values(checklist.respostas || {}).filter((v)=>v==='ok').length}
+${totalOk}
 </div>
 
 </div>
 
-<div class="card card-alerta">
+<div class="card alerta">
 
 <div class="card-title">
 ATENÇÃO
 </div>
 
 <div class="card-num">
-${Object.values(checklist.respostas || {}).filter((v)=>v==='alerta').length}
+${totalAlerta}
 </div>
 
 </div>
 
-<div class="card card-nc">
+<div class="card nc">
 
 <div class="card-title">
 N/C
 </div>
 
 <div class="card-num">
-${Object.values(checklist.respostas || {}).filter((v)=>v==='ruim'||v==='nc').length}
+${totalNc}
 </div>
 
 </div>
 
-<div class="card card-na">
+<div class="card na">
 
 <div class="card-title">
 N/A
 </div>
 
 <div class="card-num">
-${Object.values(checklist.respostas || {}).filter((v)=>v==='na').length}
+${totalNa}
 </div>
 
 </div>
 
-<div class="card card-total">
+<div class="card total">
 
 <div class="card-title">
 TOTAL
 </div>
 
 <div class="card-num">
-${Object.keys(checklist.respostas || {}).length}
+${respostas.length}
 </div>
 
 </div>
@@ -740,78 +1108,10 @@ ${Object.keys(checklist.respostas || {}).length}
 <div class="box">
 
 <div class="box-header">
-CHECKLIST
+✔ CHECKLIST COMPLETO
 </div>
 
 <div class="box-content">
-
-${(() => {
-
-const respostas =
-Object.entries(
-checklist.respostas || {}
-);
-
-const metade =
-Math.ceil(
-respostas.length / 2
-);
-
-const coluna1 =
-respostas.slice(0, metade);
-
-const coluna2 =
-respostas.slice(metade);
-
-function renderizarLinha(
-[item,status],
-index
-){
-
-let badge='ok';
-
-if(status==='alerta'){
-badge='alerta';
-}
-
-if(
-status==='ruim' ||
-status==='nc'
-){
-badge='nc';
-}
-
-if(status==='na'){
-badge='na';
-}
-
-return `
-
-<tr>
-
-<td class="numero">
-${index+1}
-</td>
-
-<td class="item">
-${item}
-</td>
-
-<td class="status">
-
-<span class="badge ${badge}">
-${status.toUpperCase()}
-</span>
-
-</td>
-
-</tr>
-
-`;
-
-}
-
-return `
 
 <div class="duas-colunas">
 
@@ -819,7 +1119,7 @@ return `
 
 ${coluna1.map(
 (item,index)=>
-renderizarLinha(
+renderLinha(
 item,
 index
 )
@@ -831,7 +1131,7 @@ index
 
 ${coluna2.map(
 (item,index)=>
-renderizarLinha(
+renderLinha(
 item,
 index + metade
 )
@@ -840,10 +1140,6 @@ index + metade
 </table>
 
 </div>
-
-`;
-
-})()}
 
 </div>
 
@@ -855,6 +1151,26 @@ index + metade
 <!-- RIGHT -->
 
 <div class="right">
+
+
+<!-- AVARIAS -->
+
+<div class="box">
+
+<div class="box-header">
+🚨 AVARIAS
+</div>
+
+<div class="box-content">
+
+${avarias.join('') || 'Nenhuma avaria encontrada'}
+
+</div>
+
+</div>
+
+
+<!-- FOTOS -->
 
 <div class="box">
 
@@ -874,6 +1190,9 @@ ${imagensHtml.join('') || 'Sem fotos'}
 
 </div>
 
+
+<!-- OBS -->
+
 <div class="box">
 
 <div class="box-header">
@@ -892,10 +1211,13 @@ ${checklist.observacaoGeral || 'Sem observações'}
 
 </div>
 
+
+<!-- ASS -->
+
 <div class="box">
 
 <div class="box-header">
-✍️ ASSINATURAS
+✍ ASSINATURAS
 </div>
 
 <div class="box-content">
@@ -928,6 +1250,7 @@ Supervisor
 
 </div>
 
+
 <div class="footer">
 
 Documento gerado automaticamente pelo SIS CHECKLIST
@@ -944,7 +1267,7 @@ Documento gerado automaticamente pelo SIS CHECKLIST
 
 
 // ==========================================
-// GERAR PDF
+// PDF
 // ==========================================
 
 const { uri } =
@@ -954,7 +1277,7 @@ html
 
 
 // ==========================================
-// COMPARTILHAR
+// SHARE
 // ==========================================
 
 await Sharing.shareAsync(uri);
@@ -974,7 +1297,7 @@ Alert.alert(
 
 
 // ==========================================
-// RENDER
+// SCREEN
 // ==========================================
 
 return(
@@ -1000,11 +1323,7 @@ Detalhes Checklist
 </Text>
 
 <Text style={styles.info}>
-👤 {
-typeof checklist.usuario === 'object'
-? checklist.usuario?.nome || '-'
-: checklist.usuario || '-'
-}
+👤 {motorista}
 </Text>
 
 <Text style={styles.info}>
@@ -1023,7 +1342,7 @@ onPress={gerarPDF}
 >
 
 <Text style={styles.pdfTexto}>
-📄 Gerar PDF
+📄 GERAR PDF
 </Text>
 
 </TouchableOpacity>
@@ -1043,7 +1362,7 @@ const styles = StyleSheet.create({
 
 container:{
 flex:1,
-backgroundColor:'#EEF2F7'
+backgroundColor:'#F1F5F9'
 },
 
 content:{
@@ -1055,38 +1374,60 @@ fontSize:32,
 fontWeight:'bold',
 marginTop:50,
 marginBottom:20,
-color:'#041B4D'
+color:'#02112D'
 },
 
 cardTopo:{
+
 backgroundColor:'#fff',
+
 padding:20,
-borderRadius:18
+
+borderRadius:18,
+
+shadowColor:'#000',
+
+shadowOpacity:0.05,
+
+shadowRadius:8,
+
+elevation:3
+
 },
 
 placa:{
 fontSize:32,
 fontWeight:'bold',
-marginBottom:10
+marginBottom:10,
+color:'#02112D'
 },
 
 modelo:{
 fontSize:20,
-marginBottom:15
+marginBottom:15,
+color:'#64748B'
 },
 
 info:{
 fontSize:16,
-marginBottom:8
+marginBottom:8,
+color:'#334155'
 },
 
 pdfBtn:{
-backgroundColor:'#041B4D',
-height:55,
+
+backgroundColor:'#02112D',
+
+height:58,
+
 borderRadius:16,
+
 justifyContent:'center',
+
 alignItems:'center',
+
 marginTop:25
+
 },
 
 pdfTexto:{
