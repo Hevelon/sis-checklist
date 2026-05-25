@@ -30,12 +30,23 @@ where
 } from 'firebase/firestore';
 
 import {
+DatePickerModal,
+registerTranslation,
+pt
+} from 'react-native-paper-dates';
+
+import {
 db
 } from '../services/firebase';
 
 import {
 AuthContext
 } from '../context/AuthContext';
+
+registerTranslation(
+'pt',
+pt
+);
 
 export default function HistoricoScreen({
 
@@ -69,6 +80,12 @@ const[
 dataFiltro,
 setDataFiltro
 ]=useState('');
+
+const[
+openDate,
+setOpenDate
+]=useState(false);
+
 
 // ==========================================
 // CARREGAR CHECKLISTS
@@ -277,7 +294,7 @@ setPlacaFiltro(valor);
 
 
 {/* ========================================== */}
-{/* CAMPO DATA ESTILO ERP */}
+{/* DATA */}
 {/* ========================================== */}
 
 <View style={styles.dataContainer}>
@@ -297,12 +314,63 @@ onChangeText={setDataFiltro}
 />
 
 
+<TouchableOpacity
+
+style={styles.calendarioIcone}
+
+onPress={()=>
+setOpenDate(true)
+}
+
+>
+
+<Text style={styles.iconeTexto}>
+📅
+</Text>
+
+</TouchableOpacity>
+
 </View>
 
 
 {/* ========================================== */}
 {/* MODAL CALENDÁRIO */}
 {/* ========================================== */}
+
+<DatePickerModal
+
+locale="pt"
+
+mode="single"
+
+visible={openDate}
+
+onDismiss={()=>
+setOpenDate(false)
+}
+
+date={new Date()}
+
+onConfirm={({ date }) => {
+
+setOpenDate(false);
+
+if(date){
+
+const texto =
+
+date.toLocaleDateString(
+'pt-BR'
+);
+
+setDataFiltro(texto);
+
+}
+
+}}
+
+/>
+
 
 {/* ========================================== */}
 {/* LISTA */}
@@ -346,6 +414,20 @@ typeof item.usuario === 'object'
 : '-'
 
 }
+</Text>
+
+
+<Text style={styles.info}>
+📋 Tipo:
+{' '}
+{item.tipoExecucao || '-'}
+</Text>
+
+
+<Text style={styles.info}>
+🛣️ KM:
+{' '}
+{item.km || 0}
 </Text>
 
 

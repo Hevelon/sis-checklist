@@ -5,20 +5,15 @@ View,
 Text,
 StyleSheet,
 ScrollView,
-Image,
 TouchableOpacity,
 Alert
 } from 'react-native';
 
 import * as Print from 'expo-print';
-
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 
-export default function DetalhesChecklistScreen({
-
-route
-
-}){
+export default function DetalhesChecklistScreen({ route }) {
 
 const { checklist } = route.params;
 
@@ -46,76 +41,124 @@ return new Date(data)
 
 
 // ==========================================
-// COMPATIBILIDADE
+// VEICULO
 // ==========================================
 
-const placa=
-
+const placa =
 checklist.veiculo?.placa ||
-
 checklist.placa ||
-
 '-';
 
-const marca=
-
+const marca =
 checklist.veiculo?.marca ||
-
 '';
 
-const modelo=
-
+const modelo =
 checklist.veiculo?.modelo ||
-
 '';
 
 
 // ==========================================
-// GERAR PDF
+// BASE64
+// ==========================================
+
+async function imagemParaBase64(uri){
+
+try{
+
+const base64 =
+await FileSystem.readAsStringAsync(
+uri,
+{
+encoding:
+FileSystem.EncodingType.Base64
+}
+);
+
+return `data:image/jpeg;base64,${base64}`;
+
+}catch(e){
+
+console.log(e);
+
+return null;
+
+}
+
+}
+
+
+// ==========================================
+// PDF
 // ==========================================
 
 async function gerarPDF(){
 
 try{
 
-const respostasHtml =
+const imagensHtml=[];
 
-Object.entries(
-checklist.respostas || {}
+
+// ==========================================
+// FOTOS
+// ==========================================
+
+for(const item in checklist.fotos || {}){
+
+const fotos =
+
+Array.isArray(
+checklist.fotos[item]
 )
 
-.map(([item,status])=>`
+? checklist.fotos[item]
 
-<tr>
+: [checklist.fotos[item]];
 
-<td
-style="
-padding:8px;
-border:1px solid #CCC;
-"
->
+for(const foto of fotos){
 
+if(!foto) continue;
+
+let imagem=foto;
+
+if(
+foto.startsWith('file:')
+){
+
+imagem =
+await imagemParaBase64(foto);
+
+}
+
+if(imagem){
+
+imagensHtml.push(`
+
+<div class="foto-card">
+
+<div class="foto-title">
 ${item}
+</div>
 
-</td>
+<img
+src="${imagem}"
+class="foto"
+/>
 
-<td
-style="
-padding:8px;
-border:1px solid #CCC;
-font-weight:bold;
-"
->
+</div>
 
-${status.toUpperCase()}
+`);
 
-</td>
+}
 
-</tr>
+}
 
-`).join('');
+}
 
 
+// ==========================================
+// HTML
+// ==========================================
 
 const html = `
 
@@ -127,39 +170,381 @@ const html = `
 
 <style>
 
-body{
-font-family:Arial;
-padding:25px;
-color:#111;
+*{
+box-sizing:border-box;
 }
 
-h1{
-color:#0A1E40;
+@page{
+size:A4 landscape;
+margin:8px;
+}
+
+body{
+font-family:Arial;
+background:#F4F6FA;
+margin:0;
+padding:0;
+color:#1E293B;
+font-size:10px;
+}
+
+.page{
+width:100%;
+}
+
+.header{
+
+background:#0B1F52;
+
+color:#fff;
+
+padding:10px 14px;
+
+border-radius:10px;
+
+display:flex;
+
+justify-content:space-between;
+
+align-items:center;
+
+margin-bottom:8px;
+
+}
+
+.header-left{
+display:flex;
+align-items:center;
+}
+
+.logo{
+font-size:28px;
+margin-right:10px;
+}
+
+.title{
+font-size:18px;
+font-weight:bold;
+}
+
+.subtitle{
+font-size:10px;
+opacity:0.9;
+margin-top:2px;
+}
+
+.header-right{
+text-align:right;
+font-size:10px;
+}
+
+.tipo{
+
+background:#22C55E;
+
+padding:4px 10px;
+
+border-radius:6px;
+
+font-weight:bold;
+
+display:inline-block;
+
+margin-top:5px;
+
+}
+
+.veiculo{
+
+background:#fff;
+
+border-radius:10px;
+
+padding:10px;
+
+display:flex;
+
+justify-content:space-between;
+
+align-items:center;
+
+margin-bottom:8px;
+
+border:1px solid #DDE5EF;
+
+}
+
+.veiculo-left{
+display:flex;
+align-items:center;
+}
+
+.car{
+font-size:34px;
+margin-right:10px;
+}
+
+.placa{
+font-size:20px;
+font-weight:bold;
+}
+
+.modelo{
+font-size:11px;
+margin-top:2px;
+}
+
+.info-grid{
+display:flex;
+gap:18px;
+}
+
+.info-box{
+font-size:10px;
+}
+
+.info-label{
+font-weight:bold;
+color:#64748B;
+}
+
+.info-value{
+font-size:13px;
+font-weight:bold;
+margin-top:2px;
+}
+
+.cards{
+display:flex;
+gap:6px;
+margin-bottom:8px;
+}
+
+.card{
+
+flex:1;
+
+background:#fff;
+
+border-radius:8px;
+
+padding:8px;
+
+text-align:center;
+
+border-top:4px solid #ccc;
+
+}
+
+.card-ok{
+border-color:#22C55E;
+}
+
+.card-alerta{
+border-color:#FACC15;
+}
+
+.card-nc{
+border-color:#EF4444;
+}
+
+.card-na{
+border-color:#9CA3AF;
+}
+
+.card-total{
+border-color:#3B82F6;
+}
+
+.card-title{
+font-size:10px;
+font-weight:bold;
+margin-bottom:3px;
+}
+
+.card-num{
+font-size:20px;
+font-weight:bold;
+}
+
+.content{
+display:flex;
+gap:8px;
+}
+
+.left{
+width:68%;
+}
+
+.right{
+width:32%;
+}
+
+.box{
+
+background:#fff;
+
+border-radius:10px;
+
+overflow:hidden;
+
+border:1px solid #DDE5EF;
+
+margin-bottom:8px;
+
+}
+
+.box-header{
+
+background:#0B1F52;
+
+color:#fff;
+
+padding:6px 10px;
+
+font-size:12px;
+
+font-weight:bold;
+
+}
+
+.box-content{
+padding:8px;
+}
+
+.duas-colunas{
+
+display:flex;
+
+gap:10px;
+
+}
+
+.duas-colunas table{
+
+width:50%;
+
 }
 
 table{
 width:100%;
 border-collapse:collapse;
-margin-top:20px;
 }
 
-th{
-background:#0A1E40;
-color:#fff;
-padding:10px;
-border:1px solid #CCC;
+tr{
+border-bottom:1px solid #EDF2F7;
 }
 
-.info{
-margin-bottom:8px;
-font-size:15px;
+td{
+padding:4px;
+font-size:9px;
+}
+
+.numero{
+width:22px;
+font-weight:bold;
+}
+
+.item{
+font-weight:bold;
 }
 
 .status{
+text-align:center;
+width:60px;
+}
+
+.badge{
+
+display:inline-block;
+
+padding:3px 6px;
+
+border-radius:5px;
+
+font-size:8px;
+
+font-weight:bold;
+
+color:#fff;
+
+min-width:48px;
+
+}
+
+.ok{
+background:#22C55E;
+}
+
+.alerta{
+background:#FACC15;
+color:#111827;
+}
+
+.nc{
+background:#EF4444;
+}
+
+.na{
+background:#9CA3AF;
+}
+
+.foto-grid{
+display:flex;
+flex-wrap:wrap;
+gap:6px;
+}
+
+.foto-card{
+width:48%;
+}
+
+.foto-title{
+font-size:9px;
+font-weight:bold;
+margin-bottom:3px;
+}
+
+.foto{
+width:100%;
+height:70px;
+object-fit:cover;
+border-radius:6px;
+border:1px solid #E5E7EB;
+}
+
+.obs{
+background:#FFF8E7;
+padding:8px;
+border-radius:6px;
+line-height:14px;
+font-size:9px;
+}
+
+.assinaturas{
+display:flex;
+justify-content:space-between;
+margin-top:15px;
+}
+
+.ass{
+width:45%;
+text-align:center;
+}
+
+.ass-line{
+border-top:1px solid #94A3B8;
+padding-top:4px;
 margin-top:20px;
-padding:12px;
-background:#F5F5F5;
-border-radius:10px;
+font-size:9px;
+font-weight:bold;
+}
+
+.footer{
+margin-top:6px;
+text-align:center;
+font-size:8px;
+color:#64748B;
 }
 
 </style>
@@ -168,74 +553,386 @@ border-radius:10px;
 
 <body>
 
-<h1>
-Checklist Veicular
-</h1>
+<div class="page">
 
-<div class="info">
-<b>Placa:</b>
+
+<!-- HEADER -->
+
+<div class="header">
+
+<div class="header-left">
+
+<div class="logo">
+✅
+</div>
+
+<div>
+
+<div class="title">
+SIS CHECKLIST
+</div>
+
+<div class="subtitle">
+RELATÓRIO DE INSPEÇÃO VEICULAR
+</div>
+
+</div>
+
+</div>
+
+<div class="header-right">
+
+<div>
+📅 ${formatarData(checklist.data)}
+</div>
+
+<div style="margin-top:3px;">
+🆔 ${checklist.id || '-'}
+</div>
+
+<div class="tipo">
+${checklist.tipoExecucao || 'SAÍDA'}
+</div>
+
+</div>
+
+</div>
+
+
+<!-- VEICULO -->
+
+<div class="veiculo">
+
+<div class="veiculo-left">
+
+<div class="car">
+🚘
+</div>
+
+<div>
+
+<div class="placa">
 ${placa}
 </div>
 
-<div class="info">
-<b>Motorista:</b>
+<div class="modelo">
+${marca} ${modelo}
+</div>
+
+</div>
+
+</div>
+
+<div class="info-grid">
+
+<div class="info-box">
+<div class="info-label">
+Motorista
+</div>
+<div class="info-value">
 ${
 typeof checklist.usuario === 'object'
 ? checklist.usuario?.nome || '-'
 : checklist.usuario || '-'
 }
 </div>
-
-<div class="info">
-<b>Cargo:</b>
-${
-typeof checklist.usuario === 'object'
-? checklist.usuario?.cargo || '-'
-: '-'
-}
 </div>
 
-<div class="info">
-<b>Tipo:</b>
-${checklist.tipoExecucao || '-'}
+<div class="info-box">
+<div class="info-label">
+KM
 </div>
-
-<div class="info">
-<b>KM:</b>
+<div class="info-value">
 ${checklist.km || 0}
 </div>
-
-<div class="info">
-<b>Data:</b>
-${formatarData(checklist.data)}
 </div>
 
-<table>
+<div class="info-box">
+<div class="info-label">
+Tipo
+</div>
+<div class="info-value">
+${checklist.tipoExecucao || '-'}
+</div>
+</div>
+
+</div>
+
+</div>
+
+
+<!-- STATUS -->
+
+<div class="cards">
+
+<div class="card card-ok">
+
+<div class="card-title">
+OK
+</div>
+
+<div class="card-num">
+${Object.values(checklist.respostas || {}).filter((v)=>v==='ok').length}
+</div>
+
+</div>
+
+<div class="card card-alerta">
+
+<div class="card-title">
+ATENÇÃO
+</div>
+
+<div class="card-num">
+${Object.values(checklist.respostas || {}).filter((v)=>v==='alerta').length}
+</div>
+
+</div>
+
+<div class="card card-nc">
+
+<div class="card-title">
+N/C
+</div>
+
+<div class="card-num">
+${Object.values(checklist.respostas || {}).filter((v)=>v==='ruim'||v==='nc').length}
+</div>
+
+</div>
+
+<div class="card card-na">
+
+<div class="card-title">
+N/A
+</div>
+
+<div class="card-num">
+${Object.values(checklist.respostas || {}).filter((v)=>v==='na').length}
+</div>
+
+</div>
+
+<div class="card card-total">
+
+<div class="card-title">
+TOTAL
+</div>
+
+<div class="card-num">
+${Object.keys(checklist.respostas || {}).length}
+</div>
+
+</div>
+
+</div>
+
+
+<!-- CONTENT -->
+
+<div class="content">
+
+
+<!-- LEFT -->
+
+<div class="left">
+
+<div class="box">
+
+<div class="box-header">
+CHECKLIST
+</div>
+
+<div class="box-content">
+
+${(() => {
+
+const respostas =
+Object.entries(
+checklist.respostas || {}
+);
+
+const metade =
+Math.ceil(
+respostas.length / 2
+);
+
+const coluna1 =
+respostas.slice(0, metade);
+
+const coluna2 =
+respostas.slice(metade);
+
+function renderizarLinha(
+[item,status],
+index
+){
+
+let badge='ok';
+
+if(status==='alerta'){
+badge='alerta';
+}
+
+if(
+status==='ruim' ||
+status==='nc'
+){
+badge='nc';
+}
+
+if(status==='na'){
+badge='na';
+}
+
+return `
 
 <tr>
 
-<th>
-Item
-</th>
+<td class="numero">
+${index+1}
+</td>
 
-<th>
-Status
-</th>
+<td class="item">
+${item}
+</td>
+
+<td class="status">
+
+<span class="badge ${badge}">
+${status.toUpperCase()}
+</span>
+
+</td>
 
 </tr>
 
-${respostasHtml}
+`;
+
+}
+
+return `
+
+<div class="duas-colunas">
+
+<table>
+
+${coluna1.map(
+(item,index)=>
+renderizarLinha(
+item,
+index
+)
+).join('')}
 
 </table>
 
+<table>
 
-<div class="status">
+${coluna2.map(
+(item,index)=>
+renderizarLinha(
+item,
+index + metade
+)
+).join('')}
 
-<b>Observação Geral:</b>
+</table>
 
-<br/><br/>
+</div>
+
+`;
+
+})()}
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- RIGHT -->
+
+<div class="right">
+
+<div class="box">
+
+<div class="box-header">
+📸 FOTOS
+</div>
+
+<div class="box-content">
+
+<div class="foto-grid">
+
+${imagensHtml.join('') || 'Sem fotos'}
+
+</div>
+
+</div>
+
+</div>
+
+<div class="box">
+
+<div class="box-header">
+📝 OBSERVAÇÕES
+</div>
+
+<div class="box-content">
+
+<div class="obs">
 
 ${checklist.observacaoGeral || 'Sem observações'}
+
+</div>
+
+</div>
+
+</div>
+
+<div class="box">
+
+<div class="box-header">
+✍️ ASSINATURAS
+</div>
+
+<div class="box-content">
+
+<div class="assinaturas">
+
+<div class="ass">
+
+<div class="ass-line">
+Motorista
+</div>
+
+</div>
+
+<div class="ass">
+
+<div class="ass-line">
+Supervisor
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="footer">
+
+Documento gerado automaticamente pelo SIS CHECKLIST
+
+</div>
 
 </div>
 
@@ -246,12 +943,19 @@ ${checklist.observacaoGeral || 'Sem observações'}
 `;
 
 
-const { uri } =
+// ==========================================
+// GERAR PDF
+// ==========================================
 
+const { uri } =
 await Print.printToFileAsync({
 html
 });
 
+
+// ==========================================
+// COMPARTILHAR
+// ==========================================
 
 await Sharing.shareAsync(uri);
 
@@ -275,23 +979,15 @@ Alert.alert(
 
 return(
 
-<ScrollView
-style={styles.container}
-showsVerticalScrollIndicator={false}
-keyboardShouldPersistTaps="handled"
-nestedScrollEnabled={true}
-contentContainerStyle={{
-paddingBottom:120
-}}
->
+<View style={styles.container}>
+
+<ScrollView>
 
 <View style={styles.content}>
-
 
 <Text style={styles.titulo}>
 Detalhes Checklist
 </Text>
-
 
 <View style={styles.cardTopo}>
 
@@ -304,57 +1000,22 @@ Detalhes Checklist
 </Text>
 
 <Text style={styles.info}>
-👤 Responsável:
-{' '}
-{
-
+👤 {
 typeof checklist.usuario === 'object'
-
 ? checklist.usuario?.nome || '-'
-
 : checklist.usuario || '-'
-
 }
 </Text>
 
 <Text style={styles.info}>
-🧰 Cargo:
-{' '}
-{
-
-typeof checklist.usuario === 'object'
-
-? checklist.usuario?.cargo || '-'
-
-: '-'
-
-}
+📋 {checklist.tipoExecucao || '-'}
 </Text>
 
 <Text style={styles.info}>
-📋 Tipo:
-{' '}
-{checklist.tipoExecucao || '-'}
-</Text>
-
-<Text style={styles.info}>
-🛣️ KM:
-{' '}
-{checklist.km || 0}
-</Text>
-
-<Text style={styles.info}>
-📅 Data:
-{' '}
-{formatarData(checklist.data)}
+🛣️ KM: {checklist.km || 0}
 </Text>
 
 </View>
-
-
-{/* ========================================== */}
-{/* PDF */}
-{/* ========================================== */}
 
 <TouchableOpacity
 style={styles.pdfBtn}
@@ -367,258 +1028,71 @@ onPress={gerarPDF}
 
 </TouchableOpacity>
 
-
-<Text style={styles.subtitulo}>
-Itens Inspecionados
-</Text>
-
-
-{Object.keys(
-checklist.respostas || {}
-).map((item,index)=>{
-
-const status=
-checklist.respostas[item];
-
-return(
-
-<View
-key={index}
-style={styles.item}
->
-
-<View style={styles.topoItem}>
-
-<Text style={styles.nome}>
-{item}
-</Text>
-
-<View
-style={[
-
-styles.status,
-
-status==='ok'
-&& styles.ok,
-
-status==='alerta'
-&& styles.alerta,
-
-(status==='ruim' ||
-status==='nc')
-&& styles.ruim
-
-]}
->
-
-<Text style={styles.statusTexto}>
-
-{status==='ok'
-&& 'OK'}
-
-{status==='alerta'
-&& 'ALERTA'}
-
-{(status==='ruim' ||
-status==='nc')
-&& 'PROBLEMA'}
-
-</Text>
-
-</View>
-
-</View>
-
-
-{checklist.problemas?.[item] &&(
-
-<View style={styles.problemaBox}>
-
-<Text style={styles.problemaTitulo}>
-Defeito:
-</Text>
-
-<Text style={styles.problemaTexto}>
-{checklist.problemas[item]}
-</Text>
-
-</View>
-
-)}
-
-
-{checklist.fotos?.[item] &&(
-
-(
-Array.isArray(checklist.fotos[item])
-? checklist.fotos[item]
-: [checklist.fotos[item]]
-).map((foto,index)=>(
-
-<Image
-key={index}
-source={{
-uri:foto
-}}
-style={styles.imagem}
-/>
-
-))
-
-)}
-
-</View>
-
-)
-
-})}
-
 </View>
 
 </ScrollView>
+
+</View>
 
 )
 
 }
 
 
-const styles=StyleSheet.create({
+const styles = StyleSheet.create({
 
 container:{
 flex:1,
-backgroundColor:'#F3F5F8'
+backgroundColor:'#EEF2F7'
 },
 
 content:{
-padding:20,
-width:'100%',
-maxWidth:600,
-alignSelf:'center'
+padding:20
 },
 
 titulo:{
-fontSize:30,
+fontSize:32,
 fontWeight:'bold',
 marginTop:50,
-marginBottom:25,
-color:'#111'
+marginBottom:20,
+color:'#041B4D'
 },
 
 cardTopo:{
 backgroundColor:'#fff',
 padding:20,
-borderRadius:16,
-marginBottom:25
+borderRadius:18
 },
 
 placa:{
 fontSize:32,
 fontWeight:'bold',
-color:'#0A1E40',
-marginBottom:8
+marginBottom:10
 },
 
 modelo:{
-fontSize:18,
-color:'#666',
+fontSize:20,
 marginBottom:15
 },
 
 info:{
 fontSize:16,
-color:'#444',
 marginBottom:8
 },
 
 pdfBtn:{
-backgroundColor:'#E53935',
+backgroundColor:'#041B4D',
 height:55,
-borderRadius:14,
+borderRadius:16,
 justifyContent:'center',
 alignItems:'center',
-marginBottom:25
+marginTop:25
 },
 
 pdfTexto:{
 color:'#fff',
-fontSize:17,
-fontWeight:'bold'
-},
-
-subtitulo:{
-fontSize:24,
-fontWeight:'bold',
-marginBottom:20,
-color:'#111'
-},
-
-item:{
-backgroundColor:'#fff',
-padding:18,
-borderRadius:15,
-marginBottom:18
-},
-
-topoItem:{
-flexDirection:'row',
-justifyContent:'space-between',
-alignItems:'center'
-},
-
-nome:{
 fontSize:18,
-fontWeight:'bold',
-color:'#111',
-flex:1,
-paddingRight:10
-},
-
-status:{
-paddingHorizontal:15,
-paddingVertical:8,
-borderRadius:30
-},
-
-ok:{
-backgroundColor:'#66D37E'
-},
-
-alerta:{
-backgroundColor:'#F2D046'
-},
-
-ruim:{
-backgroundColor:'#FF7A7A'
-},
-
-statusTexto:{
-fontWeight:'bold',
-color:'#111'
-},
-
-problemaBox:{
-marginTop:15,
-backgroundColor:'#FFF5F5',
-padding:15,
-borderRadius:12
-},
-
-problemaTitulo:{
-fontWeight:'bold',
-marginBottom:5,
-color:'#B00020'
-},
-
-problemaTexto:{
-color:'#333',
-lineHeight:22
-},
-
-imagem:{
-width:'100%',
-height:220,
-borderRadius:14,
-marginTop:15
+fontWeight:'bold'
 }
 
 });
