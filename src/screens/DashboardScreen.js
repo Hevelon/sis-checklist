@@ -18,7 +18,9 @@ useFocusEffect
 
 import {
 collection,
-getDocs
+getDocs,
+query,
+where
 } from 'firebase/firestore';
 
 import {
@@ -38,6 +40,9 @@ navigation
 const{
 usuario
 }=useContext(AuthContext);
+
+const empresaId =
+usuario?.empresaId || 'default';
 
 
 // ==========================================
@@ -114,33 +119,61 @@ try{
 
 const veiculosSnap=
 await getDocs(
+query(
 collection(
 db,
 'veiculos'
+),
+where(
+'empresaId',
+'==',
+empresaId
+)
 )
 );
 
 const usuariosSnap=
 await getDocs(
+query(
 collection(
 db,
 'usuarios'
+),
+where(
+'empresaId',
+'==',
+empresaId
+)
 )
 );
 
 const checklistSnap=
 await getDocs(
+query(
 collection(
 db,
 'checklists'
+),
+where(
+'empresaId',
+'==',
+empresaId
+)
 )
 );
 
 const sinistrosSnap=
 await getDocs(
+query(
 collection(
 db,
 'sinistros'
+),
+where(
+'empresaId',
+'==',
+empresaId
+)
 )
 );
 

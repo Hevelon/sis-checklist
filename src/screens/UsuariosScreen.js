@@ -19,7 +19,9 @@ useFocusEffect
 
 import {
 collection,
-getDocs
+getDocs,
+query,
+where
 } from 'firebase/firestore';
 
 import {
@@ -45,6 +47,9 @@ const{
 usuario
 }=useContext(AuthContext);
 
+const empresaId =
+usuario?.empresaId || 'default';
+
 const[
 usuarios,
 setUsuarios
@@ -68,9 +73,16 @@ setLoading(true);
 
 const querySnapshot=
 await getDocs(
+query(
 collection(
 db,
 'usuarios'
+),
+where(
+'empresaId',
+'==',
+empresaId
+)
 )
 );
 

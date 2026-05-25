@@ -155,7 +155,8 @@ status==='ok'
 status==='alerta'
 && styles.alerta,
 
-status==='ruim'
+(status==='ruim' ||
+status==='nc')
 && styles.ruim
 
 ]}
@@ -169,7 +170,8 @@ status==='ruim'
 {status==='alerta'
 && 'ALERTA'}
 
-{status==='ruim'
+{(status==='ruim' ||
+status==='nc')
 && 'PROBLEMA'}
 
 </Text>
@@ -196,12 +198,21 @@ Defeito:
 
 {checklist.fotos?.[item] &&(
 
+(
+Array.isArray(checklist.fotos[item])
+? checklist.fotos[item]
+: [checklist.fotos[item]]
+).map((foto,index)=>(
+
 <Image
+key={index}
 source={{
-uri:checklist.fotos[item]
+uri:foto
 }}
 style={styles.imagem}
 />
+
+))
 
 )}
 

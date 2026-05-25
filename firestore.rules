@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function userData() {
+      return userDoc().data;
+    }
+
+    function empresaId() {
+      return userData().empresaId != null ? userData().empresaId : 'default';
+    }
+
+    function sameEmpresa(data) {
+      return signedIn() && data.empresaId == empresaId();
+    }
+
+    function adminOrSupervisor() {
+      return signedIn() &&
+        (userData().nivel == 'admin' || userData().nivel == 'supervisor');
+    }
+
+    match /usuarios/{userId} {
+      allow read: if signedIn() &&
+        (request.auth.uid == userId || (adminOrSupervisor() && sameEmpresa(resource.data)));
+      allow create: if false;
+      allow update: if signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly(['telefone', 'cargo', 'nome']);
+      allow delete: if false;
+    }
+
+    match /modelosChecklist/{modeloId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /veiculos/{veiculoId} {
+      allow read: if sameEmpresa(resource.data);
+      allow create: if adminOrSupervisor() && sameEmpresa(request.resource.data);
+      allow update: if adminOrSupervisor() &&
+        sameEmpresa(resource.data) &&
+        sameEmpresa(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /checklists/{checklistId} {
+      allow read: if sameEmpresa(resource.data) &&
+        (adminOrSupervisor() || resource.data.usuario.uid == request.auth.uid);
+      allow create: if signedIn() &&
+        sameEmpresa(request.resource.data) &&
+        request.resource.data.usuario.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /sinistros/{sinistroId} {
+      allow read: if sameEmpresa(resource.data);
+      allow create: if signedIn() &&
+        sameEmpresa(request.resource.data) &&
+        request.resource.data.usuario.uid == request.auth.uid;
+      allow update: if adminOrSupervisor() &&
+        sameEmpresa(resource.data) &&
+        sameEmpresa(request.resource.data);
+      allow delete: if false;
+    }
+  }
+}

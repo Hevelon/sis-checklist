@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userData() {
+      return firestore.get(
+        /databases/(default)/documents/usuarios/$(request.auth.uid)
+      ).data;
+    }
+
+    function empresaId() {
+      return userData().empresaId != null ? userData().empresaId : 'default';
+    }
+
+    match /empresas/{empresa}/{allPaths=**} {
+      allow read, write: if signedIn() && empresa == empresaId();
+    }
+  }
+}

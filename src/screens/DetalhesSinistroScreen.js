@@ -1,5 +1,6 @@
 import React,{
-useState
+useState,
+useContext
 } from 'react';
 
 import {
@@ -22,12 +23,24 @@ import {
 db
 } from '../services/firebase';
 
+import {
+AuthContext
+} from '../context/AuthContext';
+
 export default function DetalhesSinistroScreen({
 
 route,
 navigation
 
-}){
+}){ 
+
+const{
+usuario
+}=useContext(AuthContext);
+
+const podeEditar =
+usuario?.nivel === 'admin' ||
+usuario?.nivel === 'supervisor';
 
 
 // ==========================================
@@ -69,6 +82,17 @@ setLoading
 
 async function salvarAtualizacao(){
 
+if(!podeEditar){
+
+Alert.alert(
+'Acesso negado',
+'Somente admin ou supervisor pode atualizar sinistros'
+);
+
+return;
+
+}
+
 try{
 
 setLoading(true);
@@ -83,6 +107,8 @@ sinistro.id
 
 {
 
+empresaId:
+sinistro.empresaId || usuario?.empresaId || 'default',
 status,
 observacoes
 

@@ -18,18 +18,22 @@ ActivityIndicator
 import * as ImagePicker from 'expo-image-picker';
 
 import {
-DatePickerModal
-} from 'react-native-paper-dates';
-
-import {
 collection,
-addDoc,
-serverTimestamp
+serverTimestamp,
+doc,
+setDoc
 } from 'firebase/firestore';
 
 import {
-db
+db,
+storage
 } from '../services/firebase';
+
+import {
+ref,
+uploadBytes,
+getDownloadURL
+} from 'firebase/storage';
 
 import {
 AuthContext
@@ -82,13 +86,6 @@ setLoading
 ]=useState(false);
 
 const[
-data,
-setData
-]=useState(
-new Date()
-);
-
-const[
 dataTexto,
 setDataTexto
 ]=useState(
@@ -96,15 +93,54 @@ new Date()
 .toLocaleDateString('pt-BR')
 );
 
-const[
-openCalendario,
-setOpenCalendario
-]=useState(false);
+const empresaId =
+usuario?.empresaId || 'default';
 
 
 // ==========================================
 // FOTO
 // ==========================================
+
+async function uploadFotoSinistro(
+sinistroId,
+uri,
+index
+){
+
+const response =
+await fetch(uri);
+
+const blob =
+await response.blob();
+
+const fotoRef =
+ref(
+storage,
+`empresas/${empresaId}/sinistros/${sinistroId}/foto-${Date.now()}-${index}.jpg`
+);
+
+await uploadBytes(
+fotoRef,
+blob
+);
+
+return getDownloadURL(fotoRef);
+
+}
+
+async function enviarFotos(sinistroId){
+
+return Promise.all(
+fotos.map((uri,index)=>
+uploadFotoSinistro(
+sinistroId,
+uri,
+index
+)
+)
+);
+
+}
 
 async function tirarFoto(){
 
@@ -175,14 +211,23 @@ try{
 
 setLoading(true);
 
-await addDoc(
-
+const sinistroRef =
+doc(
 collection(
 db,
 'sinistros'
-),
+)
+);
+
+const fotosEnviadas =
+await enviarFotos(sinistroRef.id);
+
+await setDoc(
+sinistroRef,
 
 {
+
+empresaId,
 
 placa,
 
@@ -194,7 +239,8 @@ descricao,
 
 severidade,
 
-fotos,
+fotos:
+fotosEnviadas,
 
 status:'aberto',
 
@@ -376,54 +422,7 @@ onChangeText={setDataTexto}
 />
 
 
-<TouchableOpacity
-
-style={styles.calendarioIcone}
-
-onPress={()=>setOpenCalendario(true)}
-
->
-
-<Text style={styles.iconeTexto}>
-📅
-</Text>
-
-</TouchableOpacity>
-
 </View>
-
-
-<DatePickerModal
-
-locale="pt"
-
-mode="single"
-
-visible={openCalendario}
-
-onDismiss={()=>setOpenCalendario(false)}
-
-date={data}
-
-onConfirm={({date})=>{
-
-setOpenCalendario(false);
-
-if(date){
-
-setData(date);
-
-setDataTexto(
-
-date.toLocaleDateString('pt-BR')
-
-);
-
-}
-
-}}
-
-/>
 
 
 {/* ========================================== */}

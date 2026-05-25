@@ -25,7 +25,9 @@ collection,
 getDocs,
 doc,
 setDoc,
-updateDoc
+updateDoc,
+query,
+where
 } from 'firebase/firestore';
 
 import {
@@ -36,7 +38,9 @@ import {
 AuthContext
 } from '../context/AuthContext';
 
-import axios from 'axios';
+import {
+buscarVeiculosTraccar
+} from '../services/functions';
 
 export default function VeiculosScreen({
 
@@ -88,6 +92,9 @@ busca,
 setBusca
 ]=useState('');
 
+const empresaId =
+usuario?.empresaId || 'default';
+
 
 // ==========================================
 // CARREGAR VEÍCULOS
@@ -99,13 +106,20 @@ try{
 
 setLoading(true);
 
-const querySnapshot=
-await getDocs(
+const q=query(
 collection(
 db,
 'veiculos'
+),
+where(
+'empresaId',
+'==',
+empresaId
 )
 );
+
+const querySnapshot=
+await getDocs(q);
 
 const lista=[];
 
@@ -161,9 +175,7 @@ try{
 setSincronizando(true);
 
 const response=
-await axios.get(
-'https://us-central1-sis-checklist.cloudfunctions.net/getTraccarDevices'
-);
+await buscarVeiculosTraccar();
 
 const lista=
 response.data;
@@ -191,10 +203,12 @@ await setDoc(
 doc(
 db,
 'veiculos',
-String(item.id)
+`${empresaId}_${item.id}`
 ),
 
 {
+
+empresaId,
 
 traccarId:
 item.id,
@@ -268,6 +282,8 @@ editando.id
 ),
 
 {
+
+empresaId,
 
 categoria,
 tipoOperacional:

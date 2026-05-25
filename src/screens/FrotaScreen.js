@@ -1,5 +1,6 @@
 import React,{
-useState
+useState,
+useContext
 } from 'react';
 
 import {
@@ -15,9 +16,23 @@ import {
 useFocusEffect // ✅ ADICIONADO
 } from '@react-navigation/native';
 
-import axios from 'axios';
+import {
+AuthContext
+} from '../context/AuthContext';
+
+import {
+buscarVeiculosTraccar
+} from '../services/functions';
 
 export default function FrotaScreen(){
+
+const{
+usuario
+}=useContext(AuthContext);
+
+const isAdmin =
+usuario?.nivel === 'admin' ||
+usuario?.nivel === 'supervisor';
 
 const[
 veiculos,
@@ -40,10 +55,15 @@ try{
 
 setLoading(true); // ✅ ADICIONADO
 
+if(!isAdmin){
+
+setVeiculos([]);
+return;
+
+}
+
 const response=
-await axios.get(
-'https://us-central1-sis-checklist.cloudfunctions.net/getTraccarDevices'
-);
+await buscarVeiculosTraccar();
 
 setVeiculos(
 response.data

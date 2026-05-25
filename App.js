@@ -20,12 +20,3 @@ return(
 )
 
 }
-import {
-registerTranslation,
-pt
-} from 'react-native-paper-dates';
-
-registerTranslation(
-'pt',
-pt
-);

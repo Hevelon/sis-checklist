@@ -69,6 +69,9 @@ setUsuario({
 uid:
 firebaseUser.uid,
 
+empresaId:
+docSnap.data().empresaId || 'default',
+
 ...docSnap.data()
 
 });

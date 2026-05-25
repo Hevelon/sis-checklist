@@ -1,6 +1,7 @@
 import React,{
 useState,
-useEffect
+useEffect,
+useContext
 } from 'react';
 
 import {
@@ -17,18 +18,30 @@ import {
 collection,
 getDocs,
 query,
-orderBy
+orderBy,
+where
 } from 'firebase/firestore';
 
 import {
 db
 } from '../services/firebase';
 
+import {
+AuthContext
+} from '../context/AuthContext';
+
 export default function SinistrosScreen({
 
 navigation
 
-}){
+}){ 
+
+const{
+usuario
+}=useContext(AuthContext);
+
+const empresaId =
+usuario?.empresaId || 'default';
 
 
 // ==========================================
@@ -66,6 +79,12 @@ const q=query(
 collection(
 db,
 'sinistros'
+),
+
+where(
+'empresaId',
+'==',
+empresaId
 ),
 
 orderBy(

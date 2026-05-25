@@ -18,10 +18,6 @@ Keyboard
 } from 'react-native';
 
 import {
-DatePickerModal
-} from 'react-native-paper-dates';
-
-import {
 useFocusEffect
 } from '@react-navigation/native';
 
@@ -29,7 +25,8 @@ import {
 collection,
 getDocs,
 query,
-orderBy
+orderBy,
+where
 } from 'firebase/firestore';
 
 import {
@@ -50,6 +47,9 @@ const{
 usuario
 }=useContext(AuthContext);
 
+const empresaId =
+usuario?.empresaId || 'default';
+
 
 // ==========================================
 // STATES
@@ -69,17 +69,6 @@ const[
 dataFiltro,
 setDataFiltro
 ]=useState('');
-
-const[
-dataSelecionada,
-setDataSelecionada
-]=useState(null);
-
-const[
-openCalendario,
-setOpenCalendario
-]=useState(false);
-
 
 // ==========================================
 // CARREGAR CHECKLISTS
@@ -109,6 +98,12 @@ const q=query(
 collection(
 db,
 'checklists'
+),
+
+where(
+'empresaId',
+'==',
+empresaId
 ),
 
 orderBy(
@@ -183,8 +178,8 @@ item.veiculo?.placa
 const data=
 
 item.data?.toDate()
-.toLocaleDateString('pt-BR')
-.toLowerCase();
+?.toLocaleDateString('pt-BR')
+.toLowerCase() || '';
 
 const buscaPlaca=
 placaFiltro.toLowerCase();
@@ -302,57 +297,12 @@ onChangeText={setDataFiltro}
 />
 
 
-<TouchableOpacity
-
-style={styles.calendarioIcone}
-
-onPress={()=>setOpenCalendario(true)}
-
->
-
-<Text style={styles.iconeTexto}>
-📅
-</Text>
-
-</TouchableOpacity>
-
 </View>
 
 
 {/* ========================================== */}
 {/* MODAL CALENDÁRIO */}
 {/* ========================================== */}
-
-<DatePickerModal
-
-locale="pt"
-
-mode="single"
-
-visible={openCalendario}
-
-onDismiss={()=>setOpenCalendario(false)}
-
-date={
-dataSelecionada || new Date()
-}
-
-onConfirm={({date})=>{
-
-setOpenCalendario(false);
-
-setDataSelecionada(date);
-
-setDataFiltro(
-
-date.toLocaleDateString('pt-BR')
-
-);
-
-}}
-
-/>
-
 
 {/* ========================================== */}
 {/* LISTA */}

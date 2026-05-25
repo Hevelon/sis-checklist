@@ -18,22 +18,12 @@ Keyboard
 } from 'react-native';
 
 import {
-createUserWithEmailAndPassword
-} from 'firebase/auth';
-
-import {
-doc,
-setDoc
-} from 'firebase/firestore';
-
-import {
-auth,
-db
-} from '../services/firebase';
-
-import {
 AuthContext
 } from '../context/AuthContext';
+
+import {
+criarUsuarioApp
+} from '../services/functions';
 
 export default function CadastrarUsuarioScreen(){
 
@@ -70,6 +60,11 @@ const[
 senha,
 setSenha
 ]=useState('');
+
+const[
+loading,
+setLoading
+]=useState(false);
 
 if(
 usuario?.nivel !== 'admin' &&
@@ -120,36 +115,22 @@ return;
 
 try{
 
-const usuarioCriado=
+setLoading(true);
 
-await createUserWithEmailAndPassword(
-auth,
-email,
-senha
-);
+await criarUsuarioApp({
 
-await setDoc(
-doc(
-db,
-'usuarios',
-usuarioCriado.user.uid
-),
-{
-
-uid:
-usuarioCriado.user.uid,
-
-nome,
-email,
-telefone,
-cargo,
+nome:
+nome.trim(),
+email:
+email.trim(),
+telefone:
+telefone.trim(),
+cargo:
+cargo.trim(),
 nivel,
+senha
 
-createdAt:
-new Date()
-
-}
-);
+});
 
 Alert.alert(
 'Sucesso',
@@ -168,8 +149,12 @@ console.log(e);
 
 Alert.alert(
 'Erro',
-e.message
+e.message || 'Nao foi possivel cadastrar o usuario'
 );
+
+}finally{
+
+setLoading(false);
 
 }
 
@@ -305,10 +290,13 @@ onChangeText={setSenha}
 <TouchableOpacity
 style={styles.botao}
 onPress={salvar}
+disabled={loading}
 >
 
 <Text style={styles.botaoTexto}>
-Salvar
+{loading
+? 'Salvando...'
+: 'Salvar'}
 </Text>
 
 </TouchableOpacity>

@@ -1,22 +1,22 @@
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL:
-    'https://gettraccardevices-2r6flvkjna-uc.a.run.app',
-});
+import {
+buscarVeiculosTraccar as buscarVeiculosTraccarCallable
+} from './functions';
 
 export async function buscarVeiculosTraccar() {
-  try {
 
-    const response = await api.get('/');
+try {
 
-    return response.data;
+const response =
+await buscarVeiculosTraccarCallable();
 
-  } catch (error) {
+return response.data;
 
-    console.log(error);
+} catch (error) {
 
-    return [];
+console.log(error);
 
-  }
+return [];
+
+}
+
 }

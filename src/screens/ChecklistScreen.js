@@ -22,15 +22,22 @@ collection,
 getDocs,
 query,
 where,
-addDoc,
 serverTimestamp,
 doc,
-getDoc
+getDoc,
+setDoc
 } from 'firebase/firestore';
 
 import {
-db
+db,
+storage
 } from '../services/firebase';
+
+import {
+ref,
+uploadBytes,
+getDownloadURL
+} from 'firebase/storage';
 
 import {
 AuthContext
@@ -87,6 +94,9 @@ observacaoGeral,
 setObservacaoGeral
 ]=useState('');
 
+const empresaId =
+usuario?.empresaId || 'default';
+
 
 // ==========================================
 // BUSCAR VEÍCULO
@@ -120,6 +130,12 @@ where(
 'placa',
 '==',
 placa
+),
+
+where(
+'empresaId',
+'==',
+empresaId
 )
 
 );
@@ -334,6 +350,67 @@ setObservacoes((prev)=>({
 // TIRAR FOTO
 // ==========================================
 
+function normalizarTextoParaPath(texto){
+
+return String(texto)
+.normalize('NFD')
+.replace(/[\u0300-\u036f]/g,'')
+.replace(/[^a-zA-Z0-9_-]/g,'_');
+
+}
+
+async function uploadFotoChecklist(
+checklistId,
+item,
+uri,
+index
+){
+
+const response =
+await fetch(uri);
+
+const blob =
+await response.blob();
+
+const fotoRef =
+ref(
+storage,
+`empresas/${empresaId}/checklists/${checklistId}/${normalizarTextoParaPath(item)}-${Date.now()}-${index}.jpg`
+);
+
+await uploadBytes(
+fotoRef,
+blob
+);
+
+return getDownloadURL(fotoRef);
+
+}
+
+async function enviarFotos(checklistId){
+
+const fotosEnviadas={};
+
+for(const item of Object.keys(fotos)){
+
+fotosEnviadas[item]=
+await Promise.all(
+(fotos[item] || []).map((uri,index)=>
+uploadFotoChecklist(
+checklistId,
+item,
+uri,
+index
+)
+)
+);
+
+}
+
+return fotosEnviadas;
+
+}
+
 async function tirarFoto(item){
 
 const permissao=
@@ -404,12 +481,22 @@ try{
 
 setLoading(true);
 
-await addDoc(
+const checklistRef =
+doc(
 collection(
 db,
 'checklists'
-),
+)
+);
+
+const fotosEnviadas =
+await enviarFotos(checklistRef.id);
+
+await setDoc(
+checklistRef,
 {
+
+empresaId,
 
 veiculo,
 
@@ -431,7 +518,8 @@ respostas,
 problemas:
 observacoes,
 
-fotos,
+fotos:
+fotosEnviadas,
 
 observacaoGeral,
 

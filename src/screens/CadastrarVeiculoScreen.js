@@ -77,6 +77,9 @@ loading,
 setLoading
 ]=useState(false);
 
+const empresaId =
+usuario?.empresaId || 'default';
+
 if(
 usuario?.nivel !== 'admin' &&
 usuario?.nivel !== 'supervisor'
@@ -124,6 +127,8 @@ db,
 ),
 {
 
+empresaId,
+
 placa:
 placa
 .trim()
@@ -140,6 +145,9 @@ Number(km) || 0,
 
 tipo:
 tipo.trim(),
+
+categoria:
+tipo.trim() || 'car',
 
 traccarId:
 Number(traccarId) || null,
@@ -228,7 +236,27 @@ placeholder="Placa"
 placeholderTextColor="#777"
 autoCapitalize="characters"
 value={placa}
-onChangeText={setPlaca}
+onChangeText={(texto)=>{
+
+let valor=
+texto
+.toUpperCase()
+.replace(/[^A-Z0-9]/g,'');
+
+if(valor.length > 3){
+
+valor=
+valor.slice(0,3)
++
+'-'
++
+valor.slice(3,7);
+
+}
+
+setPlaca(valor);
+
+}}
 />
 
 <TextInput
