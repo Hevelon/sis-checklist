@@ -27,12 +27,16 @@ import {
 AuthContext
 } from '../context/AuthContext';
 
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+
 export default function DetalhesSinistroScreen({
 
 route,
 navigation
 
-}){ 
+}){
 
 const{
 usuario
@@ -77,6 +81,603 @@ setLoading
 
 
 // ==========================================
+// PLACA
+// ==========================================
+
+function formatarPlaca(placa=''){
+
+const limpa =
+placa
+.replace(/[^a-zA-Z0-9]/g,'')
+.toUpperCase();
+
+if(limpa.length <= 3){
+return limpa;
+}
+
+return `${limpa.slice(0,3)}-${limpa.slice(3,7)}`;
+
+}
+
+
+// ==========================================
+// BASE64
+// ==========================================
+
+async function imagemParaBase64(uri){
+
+try{
+
+const base64 =
+await FileSystem.readAsStringAsync(
+uri,
+{
+encoding:
+FileSystem.EncodingType.Base64
+}
+);
+
+return `data:image/jpeg;base64,${base64}`;
+
+}catch(e){
+
+console.log(e);
+
+return null;
+
+}
+
+}
+
+
+// ==========================================
+// COR STATUS
+// ==========================================
+
+function corStatus(valor){
+
+if(valor==='aberto'){
+return '#E53935';
+}
+
+if(valor==='analise'){
+return '#F2C94C';
+}
+
+if(valor==='finalizado'){
+return '#2CC36B';
+}
+
+return '#999';
+
+}
+
+
+// ==========================================
+// COR SEVERIDADE
+// ==========================================
+
+function corSeveridade(valor){
+
+if(valor==='leve'){
+return '#F2C94C';
+}
+
+if(valor==='moderado'){
+return '#F2994A';
+}
+
+if(valor==='grave'){
+return '#E53935';
+}
+
+return '#999';
+
+}
+
+
+// ==========================================
+// PDF
+// ==========================================
+
+async function gerarPDF(){
+
+try{
+
+let fotosHtml='';
+
+for(const foto of sinistro?.fotos || []){
+
+let imagem=foto;
+
+if(
+foto.startsWith('file:')
+){
+
+imagem =
+await imagemParaBase64(foto);
+
+}
+
+fotosHtml += `
+
+<div class="foto-card">
+
+<img
+src="${imagem}"
+class="foto"
+/>
+
+</div>
+
+`;
+
+}
+
+
+const qrPayload =
+encodeURIComponent(
+JSON.stringify({
+placa:sinistro?.placa,
+motorista:sinistro?.motorista,
+data:sinistro?.dataOcorrencia
+})
+);
+
+const qrUrl =
+`https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${qrPayload}`;
+
+
+const html = `
+
+<html>
+
+<head>
+
+<meta charset="utf-8"/>
+
+<style>
+
+*{
+box-sizing:border-box;
+}
+
+@page{
+size:A4;
+margin:10px;
+}
+
+body{
+
+font-family:Arial;
+
+background:#F3F5F8;
+
+padding:0;
+
+margin:0;
+
+color:#111;
+
+}
+
+.page{
+padding:10px;
+}
+
+
+/* ====================================== */
+/* HEADER */
+/* ====================================== */
+
+.header{
+
+background:
+linear-gradient(
+135deg,
+#02112D,
+#0B2D72
+);
+
+padding:18px;
+
+border-radius:20px;
+
+display:flex;
+
+justify-content:space-between;
+
+align-items:center;
+
+color:#fff;
+
+margin-bottom:14px;
+
+}
+
+.header-title{
+font-size:28px;
+font-weight:bold;
+}
+
+.header-sub{
+font-size:12px;
+opacity:0.8;
+margin-top:4px;
+}
+
+.header-right{
+text-align:right;
+}
+
+.badge{
+
+padding:8px 14px;
+
+border-radius:10px;
+
+font-size:11px;
+
+font-weight:bold;
+
+color:#fff;
+
+display:inline-block;
+
+margin-top:8px;
+
+}
+
+
+/* ====================================== */
+/* GRID */
+/* ====================================== */
+
+.grid{
+display:flex;
+gap:10px;
+margin-bottom:10px;
+}
+
+.card{
+
+flex:1;
+
+background:#fff;
+
+padding:14px;
+
+border-radius:18px;
+
+}
+
+.label{
+
+font-size:11px;
+
+font-weight:bold;
+
+color:#666;
+
+margin-bottom:6px;
+
+}
+
+.valor{
+
+font-size:18px;
+
+font-weight:bold;
+
+color:#111;
+
+}
+
+
+/* ====================================== */
+/* DESCRIÇÃO */
+/* ====================================== */
+
+.descricao{
+
+background:#fff;
+
+padding:18px;
+
+border-radius:18px;
+
+margin-bottom:12px;
+
+line-height:24px;
+
+font-size:14px;
+
+}
+
+
+/* ====================================== */
+/* FOTOS */
+/* ====================================== */
+
+.fotos{
+
+display:flex;
+
+flex-wrap:wrap;
+
+gap:8px;
+
+margin-bottom:16px;
+
+}
+
+.foto-card{
+width:48%;
+}
+
+.foto{
+
+width:100%;
+
+height:180px;
+
+object-fit:cover;
+
+border-radius:16px;
+
+}
+
+
+/* ====================================== */
+/* FOOTER */
+/* ====================================== */
+
+.footer{
+
+display:flex;
+
+justify-content:space-between;
+
+align-items:flex-end;
+
+margin-top:20px;
+
+}
+
+.ass{
+width:40%;
+text-align:center;
+}
+
+.linha{
+
+border-top:
+1px solid #999;
+
+margin-top:40px;
+
+padding-top:8px;
+
+font-size:12px;
+
+}
+
+.qr{
+width:90px;
+height:90px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="page">
+
+
+<!-- HEADER -->
+
+<div class="header">
+
+<div>
+
+<div class="header-title">
+🚨 SINISTRO
+</div>
+
+<div class="header-sub">
+Relatório operacional da ocorrência
+</div>
+
+</div>
+
+<div class="header-right">
+
+<div>
+📅 ${sinistro?.dataOcorrencia || '-'}
+</div>
+
+<div
+class="badge"
+style="
+background:${corStatus(status)}
+"
+>
+
+${String(status).toUpperCase()}
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- GRID -->
+
+<div class="grid">
+
+<div class="card">
+
+<div class="label">
+PLACA
+</div>
+
+<div class="valor">
+${formatarPlaca(
+sinistro?.placa || '-'
+)}
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="label">
+MOTORISTA
+</div>
+
+<div class="valor">
+${sinistro?.motorista || '-'}
+</div>
+
+</div>
+
+</div>
+
+
+<div class="grid">
+
+<div class="card">
+
+<div class="label">
+LOCAL
+</div>
+
+<div class="valor">
+${sinistro?.local || '-'}
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="label">
+SEVERIDADE
+</div>
+
+<div
+class="badge"
+style="
+background:${corSeveridade(
+sinistro?.severidade
+)}
+"
+>
+
+${sinistro?.severidade || '-'}
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- DESCRIÇÃO -->
+
+<div class="descricao">
+
+<b>Descrição:</b><br/><br/>
+
+${sinistro?.descricao || '-'}
+
+</div>
+
+
+<!-- OBSERVAÇÕES -->
+
+<div class="descricao">
+
+<b>Observações:</b><br/><br/>
+
+${observacoes || 'Sem observações'}
+
+</div>
+
+
+<!-- FOTOS -->
+
+<div class="fotos">
+
+${fotosHtml}
+
+</div>
+
+
+<!-- FOOTER -->
+
+<div class="footer">
+
+<div class="ass">
+
+<div class="linha">
+Motorista
+</div>
+
+</div>
+
+<div>
+
+<img
+src="${qrUrl}"
+class="qr"
+/>
+
+</div>
+
+<div class="ass">
+
+<div class="linha">
+Supervisor
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</body>
+
+</html>
+
+`;
+
+
+const { uri } =
+await Print.printToFileAsync({
+html
+});
+
+await Sharing.shareAsync(uri);
+
+}catch(e){
+
+console.log(e);
+
+Alert.alert(
+'Erro',
+'Erro ao gerar PDF'
+);
+
+}
+
+}
+
+
+// ==========================================
 // SALVAR
 // ==========================================
 
@@ -109,6 +710,7 @@ sinistro.id
 
 empresaId:
 sinistro.empresaId || usuario?.empresaId || 'default',
+
 status,
 observacoes
 
@@ -142,64 +744,6 @@ setLoading(false);
 
 
 // ==========================================
-// COR STATUS
-// ==========================================
-
-function corStatus(valor){
-
-if(valor==='aberto'){
-
-return '#E53935';
-
-}
-
-if(valor==='analise'){
-
-return '#F2C94C';
-
-}
-
-if(valor==='finalizado'){
-
-return '#2CC36B';
-
-}
-
-return '#999';
-
-}
-
-
-// ==========================================
-// COR SEVERIDADE
-// ==========================================
-
-function corSeveridade(valor){
-
-if(valor==='leve'){
-
-return '#F2C94C';
-
-}
-
-if(valor==='moderado'){
-
-return '#F2994A';
-
-}
-
-if(valor==='grave'){
-
-return '#E53935';
-
-}
-
-return '#999';
-
-}
-
-
-// ==========================================
 // RENDER
 // ==========================================
 
@@ -216,10 +760,6 @@ paddingBottom:120
 <View style={styles.content}>
 
 
-{/* ========================================== */}
-{/* TÍTULO */}
-{/* ========================================== */}
-
 <Text style={styles.titulo}>
 🚨 Detalhes do Sinistro
 </Text>
@@ -229,10 +769,6 @@ Gestão operacional da ocorrência
 </Text>
 
 
-{/* ========================================== */}
-{/* PLACA */}
-{/* ========================================== */}
-
 <View style={styles.card}>
 
 <Text style={styles.label}>
@@ -240,15 +776,13 @@ Placa
 </Text>
 
 <Text style={styles.valor}>
-🚗 {sinistro?.placa || '-'}
+🚘 {formatarPlaca(
+sinistro?.placa || '-'
+)}
 </Text>
 
 </View>
 
-
-{/* ========================================== */}
-{/* MOTORISTA */}
-{/* ========================================== */}
 
 <View style={styles.card}>
 
@@ -263,10 +797,6 @@ Motorista
 </View>
 
 
-{/* ========================================== */}
-{/* DATA */}
-{/* ========================================== */}
-
 <View style={styles.card}>
 
 <Text style={styles.label}>
@@ -279,10 +809,6 @@ Data
 
 </View>
 
-
-{/* ========================================== */}
-{/* LOCAL */}
-{/* ========================================== */}
 
 <View style={styles.card}>
 
@@ -297,10 +823,6 @@ Local
 </View>
 
 
-{/* ========================================== */}
-{/* DESCRIÇÃO */}
-{/* ========================================== */}
-
 <View style={styles.card}>
 
 <Text style={styles.label}>
@@ -313,10 +835,6 @@ Descrição
 
 </View>
 
-
-{/* ========================================== */}
-{/* SEVERIDADE */}
-{/* ========================================== */}
 
 <View style={styles.card}>
 
@@ -347,10 +865,6 @@ sinistro?.severidade
 
 </View>
 
-
-{/* ========================================== */}
-{/* STATUS */}
-{/* ========================================== */}
 
 <View style={styles.card}>
 
@@ -473,10 +987,6 @@ corStatus(status)
 </View>
 
 
-{/* ========================================== */}
-{/* OBSERVAÇÕES */}
-{/* ========================================== */}
-
 <View style={styles.card}>
 
 <Text style={styles.label}>
@@ -502,10 +1012,6 @@ onChangeText={setObservacoes}
 </View>
 
 
-{/* ========================================== */}
-{/* FOTOS */}
-{/* ========================================== */}
-
 {!!sinistro?.fotos?.length &&(
 
 <View style={styles.card}>
@@ -529,10 +1035,6 @@ style={styles.imagem}
 )}
 
 
-{/* ========================================== */}
-{/* RESPONSÁVEL */}
-{/* ========================================== */}
-
 <View style={styles.card}>
 
 <Text style={styles.label}>
@@ -550,9 +1052,20 @@ Registrado por
 </View>
 
 
-{/* ========================================== */}
-{/* SALVAR */}
-{/* ========================================== */}
+<TouchableOpacity
+
+style={styles.botaoPdf}
+
+onPress={gerarPDF}
+
+>
+
+<Text style={styles.botaoTexto}>
+📄 Gerar PDF
+</Text>
+
+</TouchableOpacity>
+
 
 <TouchableOpacity
 
@@ -599,7 +1112,7 @@ alignSelf:'center'
 },
 
 titulo:{
-fontSize:34,
+fontSize:32,
 fontWeight:'bold',
 color:'#E53935'
 },
@@ -614,8 +1127,22 @@ marginBottom:25
 card:{
 backgroundColor:'#fff',
 padding:20,
-borderRadius:22,
-marginBottom:18
+borderRadius:24,
+marginBottom:18,
+
+shadowColor:'#000',
+
+shadowOffset:{
+width:0,
+height:4
+},
+
+shadowOpacity:0.08,
+
+shadowRadius:8,
+
+elevation:3
+
 },
 
 label:{
@@ -700,7 +1227,7 @@ color:'#111'
 imagem:{
 width:'100%',
 height:240,
-borderRadius:16,
+borderRadius:18,
 marginBottom:15
 },
 
@@ -710,10 +1237,19 @@ fontSize:15,
 color:'#666'
 },
 
-botaoSalvar:{
-backgroundColor:'#0A1E40',
+botaoPdf:{
+backgroundColor:'#021B49',
 height:60,
-borderRadius:16,
+borderRadius:18,
+justifyContent:'center',
+alignItems:'center',
+marginBottom:15
+},
+
+botaoSalvar:{
+backgroundColor:'#E53935',
+height:60,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
 marginBottom:60
