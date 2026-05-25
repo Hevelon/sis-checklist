@@ -94,6 +94,21 @@ observacaoGeral,
 setObservacaoGeral
 ]=useState('');
 
+
+// ==========================================
+// NOVOS CAMPOS
+// ==========================================
+
+const[
+tipoChecklistExecucao,
+setTipoChecklistExecucao
+]=useState('saida');
+
+const[
+kmVeiculo,
+setKmVeiculo
+]=useState('');
+
 const empresaId =
 usuario?.empresaId || 'default';
 
@@ -169,11 +184,6 @@ setVeiculo(dados);
 // ==========================================
 
 let tipo='leve';
-
-
-// ==========================================
-// TIPO OPERACIONAL
-// ==========================================
 
 if(
 dados.tipoOperacional === 'granel'
@@ -347,7 +357,7 @@ setObservacoes((prev)=>({
 
 
 // ==========================================
-// TIRAR FOTO
+// STORAGE
 // ==========================================
 
 function normalizarTextoParaPath(texto){
@@ -358,6 +368,11 @@ return String(texto)
 .replace(/[^a-zA-Z0-9_-]/g,'_');
 
 }
+
+
+// ==========================================
+// UPLOAD FOTO
+// ==========================================
 
 async function uploadFotoChecklist(
 checklistId,
@@ -387,6 +402,7 @@ return getDownloadURL(fotoRef);
 
 }
 
+
 async function enviarFotos(checklistId){
 
 const fotosEnviadas={};
@@ -410,6 +426,11 @@ index
 return fotosEnviadas;
 
 }
+
+
+// ==========================================
+// FOTO
+// ==========================================
 
 async function tirarFoto(item){
 
@@ -461,7 +482,7 @@ foto
 
 
 // ==========================================
-// SALVAR CHECKLIST
+// SALVAR
 // ==========================================
 
 async function salvarChecklist(){
@@ -471,6 +492,17 @@ if(!veiculo){
 Alert.alert(
 'Atenção',
 'Busque um veículo'
+);
+
+return;
+
+}
+
+if(!kmVeiculo){
+
+Alert.alert(
+'Atenção',
+'Informe o KM do veículo'
 );
 
 return;
@@ -513,6 +545,12 @@ cargo:usuario.cargo
 tipoChecklist:
 modeloChecklist?.tipo || '',
 
+tipoExecucao:
+tipoChecklistExecucao,
+
+km:
+Number(kmVeiculo || 0),
+
 respostas,
 
 problemas:
@@ -549,6 +587,12 @@ setObservacoes({});
 setFotos({});
 
 setObservacaoGeral('');
+
+setKmVeiculo('');
+
+setTipoChecklistExecucao(
+'saida'
+);
 
 }catch(e){
 
@@ -595,7 +639,7 @@ Inspeção inteligente da frota
 
 
 {/* ========================================== */}
-{/* CAMPO PLACA COM MÁSCARA */}
+{/* PLACA */}
 {/* ========================================== */}
 
 <TextInput
@@ -675,6 +719,90 @@ Operação:
 
 
 {/* ========================================== */}
+{/* TIPO CHECKLIST */}
+{/* ========================================== */}
+
+<Text style={styles.secao}>
+Tipo do Checklist
+</Text>
+
+<View style={styles.tipoRow}>
+
+
+<TouchableOpacity
+
+style={[
+
+styles.tipoBtn,
+
+tipoChecklistExecucao==='entrada'
+&& styles.tipoAtivoEntrada
+
+]}
+
+onPress={()=>
+setTipoChecklistExecucao(
+'entrada'
+)
+}
+
+>
+
+<Text style={styles.tipoTexto}>
+ENTRADA
+</Text>
+
+</TouchableOpacity>
+
+
+
+<TouchableOpacity
+
+style={[
+
+styles.tipoBtn,
+
+tipoChecklistExecucao==='saida'
+&& styles.tipoAtivoSaida
+
+]}
+
+onPress={()=>
+setTipoChecklistExecucao(
+'saida'
+)
+}
+
+>
+
+<Text style={styles.tipoTexto}>
+SAÍDA
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+
+{/* ========================================== */}
+{/* KM */}
+{/* ========================================== */}
+
+<Text style={styles.secao}>
+KM do Veículo
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Digite o KM atual"
+placeholderTextColor="#777"
+keyboardType="numeric"
+value={kmVeiculo}
+onChangeText={setKmVeiculo}
+/>
+
+
+{/* ========================================== */}
 {/* CHECKLIST */}
 {/* ========================================== */}
 
@@ -685,7 +813,6 @@ Operação:
 <Text style={styles.secao}>
 Checklist
 </Text>
-
 
 {modeloChecklist.secoes?.map((secao,sIndex)=>(
 
@@ -698,7 +825,6 @@ style={styles.secaoBox}
 {secao.titulo}
 </Text>
 
-
 {secao.itens?.map((item,index)=>(
 
 <View
@@ -710,10 +836,6 @@ style={styles.card}
 {item}
 </Text>
 
-
-{/* ========================================== */}
-{/* BOTÕES */}
-{/* ========================================== */}
 
 <View style={styles.botoes}>
 
@@ -730,12 +852,10 @@ respostas[item]==='ok'
 ]}
 
 onPress={()=>
-
 alterarResposta(
 item,
 'ok'
 )
-
 }
 
 >
@@ -760,12 +880,10 @@ respostas[item]==='alerta'
 ]}
 
 onPress={()=>
-
 alterarResposta(
 item,
 'alerta'
 )
-
 }
 
 >
@@ -790,12 +908,10 @@ respostas[item]==='nc'
 ]}
 
 onPress={()=>
-
 alterarResposta(
 item,
 'nc'
 )
-
 }
 
 >
@@ -820,12 +936,10 @@ respostas[item]==='na'
 ]}
 
 onPress={()=>
-
 alterarResposta(
 item,
 'na'
 )
-
 }
 
 >
@@ -838,10 +952,6 @@ N/A
 
 </View>
 
-
-{/* ========================================== */}
-{/* OBS + FOTO */}
-{/* ========================================== */}
 
 {(
 respostas[item]==='alerta'
@@ -860,26 +970,19 @@ value={
 observacoes[item] || ''
 }
 onChangeText={(t)=>
-
 alterarObservacao(
 item,
 t
 )
-
 }
 />
 
 
 <TouchableOpacity
-
 style={styles.fotoBtn}
-
 onPress={()=>
-
 tirarFoto(item)
-
 }
-
 >
 
 <Text style={styles.fotoTexto}>
@@ -912,10 +1015,6 @@ style={styles.foto}
 ))}
 
 
-{/* ========================================== */}
-{/* OBS GERAL */}
-{/* ========================================== */}
-
 <Text style={styles.secao}>
 Observação Geral
 </Text>
@@ -929,10 +1028,6 @@ value={observacaoGeral}
 onChangeText={setObservacaoGeral}
 />
 
-
-{/* ========================================== */}
-{/* SALVAR */}
-{/* ========================================== */}
 
 <TouchableOpacity
 style={styles.salvarBtn}
@@ -1151,6 +1246,35 @@ fontSize:15,
 marginBottom:25,
 textAlignVertical:'top',
 color:'#111'
+},
+
+tipoRow:{
+flexDirection:'row',
+gap:12,
+marginBottom:20
+},
+
+tipoBtn:{
+flex:1,
+height:55,
+borderRadius:14,
+justifyContent:'center',
+alignItems:'center',
+backgroundColor:'#DDD'
+},
+
+tipoAtivoEntrada:{
+backgroundColor:'#F2994A'
+},
+
+tipoAtivoSaida:{
+backgroundColor:'#2CC36B'
+},
+
+tipoTexto:{
+color:'#fff',
+fontWeight:'bold',
+fontSize:16
 },
 
 salvarBtn:{
