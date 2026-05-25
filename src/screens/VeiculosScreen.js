@@ -24,7 +24,8 @@ doc,
 setDoc,
 updateDoc,
 query,
-where
+where,
+serverTimestamp
 } from 'firebase/firestore';
 
 import {
@@ -338,7 +339,7 @@ status:
 item.status || 'offline',
 
 createdAt:
-new Date()
+serverTimestamp()
 
 },
 

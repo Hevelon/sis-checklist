@@ -529,7 +529,7 @@ style={styles.filtrosRow}
 'todos',
 'admin',
 'supervisor',
-'usuario'
+'operador'
 ].map((item)=>(
 
 <TouchableOpacity

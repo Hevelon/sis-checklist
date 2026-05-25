@@ -31,6 +31,9 @@ const{
 usuario
 }=useContext(AuthContext);
 
+const empresaId =
+usuario?.empresaId || 'default';
+
 const[
 nome,
 setNome
@@ -127,6 +130,7 @@ telefone:
 telefone.trim(),
 cargo:
 cargo.trim(),
+empresaId,
 nivel,
 senha
 
