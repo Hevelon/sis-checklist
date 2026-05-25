@@ -2,8 +2,8 @@ import React,{ useContext } from 'react';
 
 import {
 View,
-ActivityIndicator,
-StyleSheet
+StyleSheet,
+ImageBackground
 } from 'react-native';
 
 import {
@@ -72,9 +72,10 @@ return(
 
 <View style={styles.loading}>
 
-<ActivityIndicator
-size="large"
-color="#0A1E40"
+<ImageBackground
+source={require('../../assets/splash-icon.png')}
+style={styles.splashImage}
+resizeMode="cover"
 />
 
 </View>
@@ -211,9 +212,13 @@ StyleSheet.create({
 
 loading:{
 flex:1,
-justifyContent:'center',
-alignItems:'center',
-backgroundColor:'#F3F5F8'
+backgroundColor:'#001E3D'
+},
+
+splashImage:{
+flex:1,
+width:'100%',
+height:'100%'
 }
 
 });
