@@ -12,10 +12,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  ActivityIndicator
 } from 'react-native';
 
 import {
+  sendPasswordResetEmail,
   signInWithEmailAndPassword
 } from 'firebase/auth';
 
@@ -23,24 +25,59 @@ import {
   auth
 } from '../services/firebase';
 
+function mensagemErroFirebase(codigo) {
+
+  if (codigo === 'auth/invalid-email') {
+    return 'Digite um e-mail válido.';
+  }
+
+  if (
+    codigo === 'auth/user-not-found' ||
+    codigo === 'auth/wrong-password' ||
+    codigo === 'auth/invalid-credential'
+  ) {
+    return 'E-mail ou senha inválidos.';
+  }
+
+  if (codigo === 'auth/too-many-requests') {
+    return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+  }
+
+  if (codigo === 'auth/network-request-failed') {
+    return 'Verifique sua conexão com a internet.';
+  }
+
+  return 'Não foi possível entrar agora. Tente novamente.';
+
+}
+
 export default function LoginScreen() {
 
-  const [email, setEmail] =
-    useState('');
+  const [
+    email,
+    setEmail
+  ] = useState('');
 
-  const [senha, setSenha] =
-    useState('');
+  const [
+    senha,
+    setSenha
+  ] = useState('');
 
-  const [loading, setLoading] =
-    useState(false);
+  const [
+    loading,
+    setLoading
+  ] = useState(false);
+
+  const emailLimpo =
+    email.trim();
 
   async function entrar() {
 
-    if (!email || !senha) {
+    if (!emailLimpo || !senha) {
 
       Alert.alert(
         'Atenção',
-        'Preencha email e senha'
+        'Preencha e-mail e senha.'
       );
 
       return;
@@ -53,7 +90,7 @@ export default function LoginScreen() {
 
       await signInWithEmailAndPassword(
         auth,
-        email,
+        emailLimpo,
         senha
       );
 
@@ -63,7 +100,51 @@ export default function LoginScreen() {
 
       Alert.alert(
         'Erro ao entrar',
-        'Email ou senha inválidos'
+        mensagemErroFirebase(e.code)
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  }
+
+  async function recuperarSenha() {
+
+    if (!emailLimpo) {
+
+      Alert.alert(
+        'Recuperar senha',
+        'Digite seu e-mail para receber o link de recuperação.'
+      );
+
+      return;
+
+    }
+
+    try {
+
+      setLoading(true);
+
+      await sendPasswordResetEmail(
+        auth,
+        emailLimpo
+      );
+
+      Alert.alert(
+        'E-mail enviado',
+        'Enviamos um link para você redefinir sua senha.'
+      );
+
+    } catch (e) {
+
+      console.log(e);
+
+      Alert.alert(
+        'Não foi possível enviar',
+        mensagemErroFirebase(e.code)
       );
 
     } finally {
@@ -81,15 +162,12 @@ export default function LoginScreen() {
     >
 
       <KeyboardAvoidingView
-
         style={styles.container}
-
         behavior={
           Platform.OS === 'ios'
             ? 'padding'
             : 'height'
         }
-
       >
 
         <View style={styles.card}>
@@ -112,8 +190,10 @@ export default function LoginScreen() {
             placeholderTextColor="#777"
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
             value={email}
             onChangeText={setEmail}
+            editable={!loading}
           />
 
           <TextInput
@@ -123,20 +203,43 @@ export default function LoginScreen() {
             secureTextEntry
             value={senha}
             onChangeText={setSenha}
+            editable={!loading}
+            onSubmitEditing={entrar}
           />
 
           <TouchableOpacity
-            style={styles.botao}
+            style={[
+              styles.botao,
+              loading && styles.botaoDisabled
+            ]}
             onPress={entrar}
             disabled={loading}
           >
 
-            <Text style={styles.textoBotao}>
+            {loading ? (
 
-              {loading
-                ? 'Entrando...'
-                : 'Entrar'}
+              <ActivityIndicator
+                color="#fff"
+              />
 
+            ) : (
+
+              <Text style={styles.textoBotao}>
+                Entrar
+              </Text>
+
+            )}
+
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkBotao}
+            onPress={recuperarSenha}
+            disabled={loading}
+          >
+
+            <Text style={styles.linkTexto}>
+              Esqueci minha senha
             </Text>
 
           </TouchableOpacity>
@@ -208,10 +311,25 @@ const styles = StyleSheet.create({
     marginTop: 10
   },
 
+  botaoDisabled: {
+    opacity: 0.75
+  },
+
   textoBotao: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 20
+  },
+
+  linkBotao: {
+    alignItems: 'center',
+    paddingVertical: 18
+  },
+
+  linkTexto: {
+    color: '#C8D0E0',
+    fontWeight: 'bold',
+    fontSize: 15
   }
 
 });

@@ -1,6 +1,12 @@
 import React,{ useContext } from 'react';
 
 import {
+View,
+ActivityIndicator,
+StyleSheet
+} from 'react-native';
+
+import {
 NavigationContainer
 } from '@react-navigation/native';
 
@@ -56,8 +62,26 @@ createNativeStackNavigator();
 export default function AppRoutes(){
 
 const{
-usuario
+usuario,
+loading
 }=useContext(AuthContext);
+
+if(loading){
+
+return(
+
+<View style={styles.loading}>
+
+<ActivityIndicator
+size="large"
+color="#0A1E40"
+/>
+
+</View>
+
+);
+
+}
 
 
 // ==========================================
@@ -181,3 +205,15 @@ component={VeiculosScreen}
 );
 
 }
+
+const styles =
+StyleSheet.create({
+
+loading:{
+flex:1,
+justifyContent:'center',
+alignItems:'center',
+backgroundColor:'#F3F5F8'
+}
+
+});
