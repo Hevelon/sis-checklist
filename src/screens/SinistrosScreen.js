@@ -41,6 +41,11 @@ const{
 usuario
 }=useContext(AuthContext);
 
+
+// ==========================================
+// EMPRESA
+// ==========================================
+
 const empresaId =
 usuario?.empresaId || 'default';
 
@@ -111,7 +116,7 @@ return `${limpa.slice(0,3)}-${limpa.slice(3,7)}`;
 
 
 // ==========================================
-// FORMATA DATA INPUT
+// FORMATA DATA
 // ==========================================
 
 function formatarDataInput(valor=''){
@@ -133,7 +138,7 @@ return `${numeros.slice(0,2)}/${numeros.slice(2,4)}/${numeros.slice(4,8)}`;
 
 
 // ==========================================
-// BUSCAR
+// BUSCAR SINISTROS
 // ==========================================
 
 async function buscarSinistros(){
@@ -141,6 +146,11 @@ async function buscarSinistros(){
 try{
 
 setLoading(true);
+
+
+// ==========================================
+// QUERY MULTIEMPRESA
+// ==========================================
 
 const q=query(
 
@@ -200,9 +210,13 @@ setRefreshing(false);
 
 useEffect(()=>{
 
+if(usuario){
+
 buscarSinistros();
 
-},[]);
+}
+
+},[usuario]);
 
 
 // ==========================================
@@ -229,12 +243,18 @@ sinistros.filter((item)=>{
 const texto =
 busca.toLowerCase();
 
+const placaNormalizada =
+String(item.placa || '')
+.replace('-','')
+.toLowerCase();
+
+const buscaNormalizada =
+texto.replace('-','');
+
 const matchBusca =
 
-item.placa
-?.toLowerCase()
-.includes(
-texto.replace('-','')
+placaNormalizada.includes(
+buscaNormalizada
 )
 
 ||
@@ -368,6 +388,28 @@ return '#999';
 // LOADING
 // ==========================================
 
+if(!usuario){
+
+return(
+
+<View style={styles.loading}>
+
+<ActivityIndicator
+size="large"
+color="#E53935"
+/>
+
+<Text style={styles.loadingTexto}>
+Carregando...
+</Text>
+
+</View>
+
+)
+
+}
+
+
 if(loading){
 
 return(
@@ -378,6 +420,10 @@ return(
 size="large"
 color="#E53935"
 />
+
+<Text style={styles.loadingTexto}>
+Carregando sinistros...
+</Text>
 
 </View>
 
@@ -840,6 +886,12 @@ flex:1,
 justifyContent:'center',
 alignItems:'center',
 backgroundColor:'#F3F5F8'
+},
+
+loadingTexto:{
+marginTop:15,
+fontSize:16,
+color:'#555'
 },
 
 titulo:{

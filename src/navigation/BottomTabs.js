@@ -19,21 +19,26 @@ from '../screens/ChecklistScreen';
 import HistoricoScreen
 from '../screens/HistoricoScreen';
 
-import UsuariosScreen
-from '../screens/UsuariosScreen';
-
 import FrotaScreen
 from '../screens/FrotaScreen';
+
+import SinistrosScreen
+from '../screens/SinistrosScreen';
 
 import {
   AuthContext
 } from '../context/AuthContext';
 
-import VeiculosScreen
-from '../screens/VeiculosScreen';
-
 const Tab =
 createBottomTabNavigator();
+
+const TAB_LABELS = {
+  Home: 'Home',
+  Checklist: 'Checklist',
+  Historico: 'Histórico',
+  Frota: 'Frota',
+  Sinistros: 'Sinistros'
+};
 
 export default function BottomTabs() {
 
@@ -63,21 +68,17 @@ export default function BottomTabs() {
       return 'clipboard';
     }
 
-    if (routeName === 'Histórico') {
+    if (routeName === 'Historico') {
       return 'time';
-    }
-
-    if (routeName === 'Usuários') {
-      return 'people';
     }
 
     if (routeName === 'Frota') {
       return 'car-sport';
     }
 
-    if (routeName === 'Veículos') {
-  return 'car';
-}
+    if (routeName === 'Sinistros') {
+      return 'alert-circle';
+    }
 
     return 'ellipse';
   }
@@ -89,6 +90,8 @@ export default function BottomTabs() {
       screenOptions={({ route }) => ({
 
         headerShown: false,
+
+        tabBarLabel: TAB_LABELS[route.name] || route.name,
 
         tabBarActiveTintColor: '#0A1E40',
 
@@ -136,7 +139,7 @@ export default function BottomTabs() {
       />
 
       <Tab.Screen
-        name="Histórico"
+        name="Historico"
         component={HistoricoScreen}
       />
 
@@ -145,16 +148,11 @@ export default function BottomTabs() {
         component={FrotaScreen}
       />
 
-      <Tab.Screen
-name="Veículos"
-component={VeiculosScreen}
-/>
-
       {isAdmin && (
 
         <Tab.Screen
-          name="Usuários"
-          component={UsuariosScreen}
+          name="Sinistros"
+          component={SinistrosScreen}
         />
 
       )}

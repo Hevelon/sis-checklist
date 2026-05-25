@@ -1,6 +1,4 @@
-import React,{
-useContext
-} from 'react';
+import React,{ useContext } from 'react';
 
 import {
 NavigationContainer
@@ -11,13 +9,16 @@ createNativeStackNavigator
 } from '@react-navigation/native-stack';
 
 import {
-View,
-ActivityIndicator
-} from 'react-native';
-
-import {
 AuthContext
 } from '../context/AuthContext';
+
+
+// ==========================================
+// TABS
+// ==========================================
+
+import BottomTabs
+from './BottomTabs';
 
 
 // ==========================================
@@ -27,8 +28,11 @@ AuthContext
 import LoginScreen
 from '../screens/LoginScreen';
 
-import BottomTabs
-from './BottomTabs';
+import RegistrarSinistroScreen
+from '../screens/RegistrarSinistroScreen';
+
+import DetalhesSinistroScreen
+from '../screens/DetalhesSinistroScreen';
 
 import CadastrarUsuarioScreen
 from '../screens/CadastrarUsuarioScreen';
@@ -39,72 +43,28 @@ from '../screens/CadastrarVeiculoScreen';
 import DetalhesChecklistScreen
 from '../screens/DetalhesChecklistScreen';
 
+import UsuariosScreen
+from '../screens/UsuariosScreen';
 
-// ==========================================
-// SINISTROS
-// ==========================================
-
-import RegistrarSinistroScreen
-from '../screens/RegistrarSinistroScreen';
-
-import SinistrosScreen
-from '../screens/SinistrosScreen';
-
-import DetalhesSinistroScreen
-from '../screens/DetalhesSinistroScreen';
+import VeiculosScreen
+from '../screens/VeiculosScreen';
 
 
-// ==========================================
-// STACK
-// ==========================================
-
-const Stack=
+const Stack =
 createNativeStackNavigator();
-
-
-// ==========================================
-// APP ROUTES
-// ==========================================
 
 export default function AppRoutes(){
 
 const{
-usuario,
-loading
+usuario
 }=useContext(AuthContext);
 
 
 // ==========================================
-// LOADING
+// LOGIN
 // ==========================================
 
-if(loading){
-
-return(
-
-<View
-style={{
-flex:1,
-justifyContent:'center',
-alignItems:'center'
-}}
->
-
-<ActivityIndicator
-size="large"
-color="#2CC36B"
-/>
-
-</View>
-
-)
-
-}
-
-
-// ==========================================
-// RENDER
-// ==========================================
+if(!usuario){
 
 return(
 
@@ -116,44 +76,53 @@ headerShown:false
 }}
 >
 
-{usuario ? (
+<Stack.Screen
+name="Login"
+component={LoginScreen}
+/>
 
-<>
+</Stack.Navigator>
+
+</NavigationContainer>
+
+);
+
+}
 
 
-{/* ========================================== */}
-{/* PRINCIPAL */}
-{/* ========================================== */}
+// ==========================================
+// SISTEMA
+// ==========================================
+
+return(
+
+<NavigationContainer>
+
+<Stack.Navigator
+
+initialRouteName="Main"
+
+screenOptions={{
+
+headerShown:false
+
+}}
+
+>
+
+{/* ====================================== */}
+{/* TABS */}
+{/* ====================================== */}
 
 <Stack.Screen
-name="Principal"
+name="Main"
 component={BottomTabs}
 />
 
 
-{/* ========================================== */}
-{/* USUÁRIOS */}
-{/* ========================================== */}
-
-<Stack.Screen
-name="CadastrarUsuario"
-component={CadastrarUsuarioScreen}
-/>
-
-
-{/* ========================================== */}
-{/* VEÍCULOS */}
-{/* ========================================== */}
-
-<Stack.Screen
-name="CadastrarVeiculo"
-component={CadastrarVeiculoScreen}
-/>
-
-
-{/* ========================================== */}
+{/* ====================================== */}
 {/* CHECKLIST */}
-{/* ========================================== */}
+{/* ====================================== */}
 
 <Stack.Screen
 name="DetalhesChecklist"
@@ -161,29 +130,14 @@ component={DetalhesChecklistScreen}
 />
 
 
-{/* ========================================== */}
-{/* REGISTRAR SINISTRO */}
-{/* ========================================== */}
+{/* ====================================== */}
+{/* SINISTROS */}
+{/* ====================================== */}
 
 <Stack.Screen
 name="RegistrarSinistro"
 component={RegistrarSinistroScreen}
 />
-
-
-{/* ========================================== */}
-{/* LISTA SINISTROS */}
-{/* ========================================== */}
-
-<Stack.Screen
-name="Sinistros"
-component={SinistrosScreen}
-/>
-
-
-{/* ========================================== */}
-{/* DETALHES SINISTRO */}
-{/* ========================================== */}
 
 <Stack.Screen
 name="DetalhesSinistro"
@@ -191,22 +145,39 @@ component={DetalhesSinistroScreen}
 />
 
 
-</>
-
-):(
-
+{/* ====================================== */}
+{/* USUÁRIOS */}
+{/* ====================================== */}
 
 <Stack.Screen
-name="Login"
-component={LoginScreen}
+name="CadastrarUsuario"
+component={CadastrarUsuarioScreen}
 />
 
-)}
+<Stack.Screen
+name="Usuarios"
+component={UsuariosScreen}
+/>
+
+
+{/* ====================================== */}
+{/* VEÍCULOS */}
+{/* ====================================== */}
+
+<Stack.Screen
+name="CadastrarVeiculo"
+component={CadastrarVeiculoScreen}
+/>
+
+<Stack.Screen
+name="Veiculos"
+component={VeiculosScreen}
+/>
 
 </Stack.Navigator>
 
 </NavigationContainer>
 
-)
+);
 
 }

@@ -1,7 +1,7 @@
 import React,{
 useState,
 useContext,
-useCallback
+useEffect
 } from 'react';
 
 import {
@@ -9,12 +9,10 @@ View,
 Text,
 StyleSheet,
 TouchableOpacity,
-ScrollView
+ScrollView,
+Dimensions,
+ActivityIndicator
 } from 'react-native';
-
-import {
-useFocusEffect
-} from '@react-navigation/native';
 
 import {
 collection,
@@ -31,11 +29,17 @@ import {
 AuthContext
 } from '../context/AuthContext';
 
-export default function DashboardScreen({
+import {
+LineChart
+} from 'react-native-chart-kit';
 
-navigation
+const largura =
+Dimensions.get('window').width;
 
-}){
+export default function DashboardScreen(props){
+
+const navigation =
+props?.navigation;
 
 const{
 usuario
@@ -48,6 +52,11 @@ usuario?.empresaId || 'default';
 // ==========================================
 // STATES
 // ==========================================
+
+const[
+loading,
+setLoading
+]=useState(true);
 
 const[
 veiculos,
@@ -69,25 +78,52 @@ sinistros,
 setSinistros
 ]=useState(0);
 
+const[
+graficoChecklist,
+setGraficoChecklist
+]=useState([0,0,0,0,0,0,0]);
+
 
 // ==========================================
-// AUTO REFRESH
+// LOAD
 // ==========================================
 
-useFocusEffect(
+useEffect(()=>{
 
-useCallback(()=>{
+if(usuario){
 
 carregarDados();
 
-},[])
+}
 
-);
+},[usuario]);
 
 
 // ==========================================
 // PERMISSÃO
 // ==========================================
+
+if(!usuario){
+
+return(
+
+<View style={styles.loading}>
+
+<ActivityIndicator
+size="large"
+color="#021B49"
+/>
+
+<Text style={styles.loadingTexto}>
+Carregando dashboard...
+</Text>
+
+</View>
+
+);
+
+}
+
 
 if(
 usuario?.nivel !== 'admin' &&
@@ -116,6 +152,13 @@ Acesso negado
 async function carregarDados(){
 
 try{
+
+setLoading(true);
+
+
+// ==========================================
+// QUERY MULTIEMPRESA
+// ==========================================
 
 const veiculosSnap=
 await getDocs(
@@ -177,6 +220,11 @@ empresaId
 )
 );
 
+
+// ==========================================
+// CONTADORES
+// ==========================================
+
 setVeiculos(
 veiculosSnap.size
 );
@@ -193,11 +241,90 @@ setSinistros(
 sinistrosSnap.size
 );
 
+
+// ==========================================
+// GRÁFICO
+// ==========================================
+
+const dias=[
+0,0,0,0,0,0,0
+];
+
+checklistSnap.forEach((doc)=>{
+
+const data = doc.data();
+
+if(data.createdAt?.seconds){
+
+const dia =
+new Date(
+data.createdAt.seconds * 1000
+).getDay();
+
+dias[dia] += 1;
+
+}
+
+});
+
+setGraficoChecklist(dias);
+
 }catch(e){
 
 console.log(e);
 
+}finally{
+
+setLoading(false);
+
 }
+
+}
+
+
+// ==========================================
+// LOADING
+// ==========================================
+
+if(loading){
+
+return(
+
+<View style={styles.loading}>
+
+<ActivityIndicator
+size="large"
+color="#021B49"
+/>
+
+<Text style={styles.loadingTexto}>
+Carregando dados...
+</Text>
+
+</View>
+
+);
+
+}
+
+
+// ==========================================
+// SAFE NAVIGATE
+// ==========================================
+
+function navegar(rota){
+
+if(!navigation){
+
+console.log(
+'Navigation undefined'
+);
+
+return;
+
+}
+
+navigation.navigate(rota);
 
 }
 
@@ -211,8 +338,6 @@ return(
 <ScrollView
 style={styles.container}
 showsVerticalScrollIndicator={false}
-keyboardShouldPersistTaps="handled"
-nestedScrollEnabled={true}
 contentContainerStyle={{
 paddingBottom:120
 }}
@@ -221,8 +346,12 @@ paddingBottom:120
 <View style={styles.content}>
 
 
+{/* ========================================== */}
+{/* HEADER */}
+{/* ========================================== */}
+
 <Text style={styles.titulo}>
-SIS Dashboard
+🚛 SIS Dashboard
 </Text>
 
 <Text style={styles.sub}>
@@ -252,12 +381,23 @@ Sistema Inteligente de Checklist Veicular
 
 
 {/* ========================================== */}
-{/* CARDS */}
+{/* KPIs */}
 {/* ========================================== */}
 
 <View style={styles.cardsRow}>
 
-<View style={styles.cardMini}>
+
+<TouchableOpacity
+
+style={styles.cardMini}
+
+activeOpacity={0.9}
+
+onPress={()=>
+navegar('Veiculos')
+}
+
+>
 
 <Text style={styles.numero}>
 {veiculos}
@@ -267,9 +407,20 @@ Sistema Inteligente de Checklist Veicular
 Veículos
 </Text>
 
-</View>
+</TouchableOpacity>
 
-<View style={styles.cardMini}>
+
+<TouchableOpacity
+
+style={styles.cardMini}
+
+activeOpacity={0.9}
+
+onPress={()=>
+navegar('Usuarios')
+}
+
+>
 
 <Text style={styles.numero}>
 {usuarios}
@@ -279,7 +430,7 @@ Veículos
 Usuários
 </Text>
 
-</View>
+</TouchableOpacity>
 
 </View>
 
@@ -288,7 +439,17 @@ Usuários
 {/* CHECKLISTS */}
 {/* ========================================== */}
 
-<View style={styles.cardGrande}>
+<TouchableOpacity
+
+style={styles.cardGrande}
+
+activeOpacity={0.9}
+
+onPress={()=>
+navegar('Historico')
+}
+
+>
 
 <Text style={styles.numeroGrande}>
 {checklists}
@@ -298,11 +459,11 @@ Usuários
 Checklists realizados
 </Text>
 
-</View>
+</TouchableOpacity>
 
 
 {/* ========================================== */}
-{/* SINISTROS CLICÁVEL */}
+{/* SINISTROS */}
 {/* ========================================== */}
 
 <TouchableOpacity
@@ -312,9 +473,7 @@ style={styles.cardSinistro}
 activeOpacity={0.9}
 
 onPress={()=>
-navigation.navigate(
-'Sinistros'
-)
+navegar('Sinistros')
 }
 
 >
@@ -335,17 +494,109 @@ Ocorrências registradas
 
 
 {/* ========================================== */}
-{/* BOTÃO REGISTRAR SINISTRO */}
+{/* GRÁFICO */}
 {/* ========================================== */}
+
+<View style={styles.graficoCard}>
+
+<Text style={styles.graficoTitulo}>
+📊 Operações da Semana
+</Text>
+
+<LineChart
+
+data={{
+
+labels:[
+'Dom',
+'Seg',
+'Ter',
+'Qua',
+'Qui',
+'Sex',
+'Sáb'
+],
+
+datasets:[{
+
+data:
+graficoChecklist.every(v=>v===0)
+? [0,0,0,0,0,0,0]
+: graficoChecklist
+
+}]
+
+}}
+
+width={largura - 80}
+
+height={220}
+
+chartConfig={{
+
+backgroundGradientFrom:'#021B49',
+
+backgroundGradientTo:'#021B49',
+
+decimalPlaces:0,
+
+color:(opacity=1)=>
+`rgba(255,255,255,${opacity})`,
+
+labelColor:(opacity=1)=>
+`rgba(255,255,255,${opacity})`,
+
+propsForDots:{
+r:'5',
+strokeWidth:'2',
+stroke:'#fff'
+}
+
+}}
+
+bezier
+
+style={{
+borderRadius:20
+}}
+
+/>
+
+</View>
+
+
+{/* ========================================== */}
+{/* AÇÕES */}
+{/* ========================================== */}
+
+<Text style={styles.secao}>
+⚡ Ações rápidas
+</Text>
+
+
+<TouchableOpacity
+
+style={styles.botaoChecklist}
+
+onPress={()=>
+navegar('Historico')
+}
+
+>
+
+<Text style={styles.botaoTexto}>
+✅ Histórico Checklist
+</Text>
+
+</TouchableOpacity>
+
 
 <TouchableOpacity
 
 style={styles.botaoSinistro}
 
 onPress={()=>
-navigation.navigate(
-'RegistrarSinistro'
-)
+navegar('RegistrarSinistro')
 }
 
 >
@@ -357,21 +608,18 @@ navigation.navigate(
 </TouchableOpacity>
 
 
-{/* ========================================== */}
-{/* FROTA */}
-{/* ========================================== */}
-
 <TouchableOpacity
+
 style={styles.botaoMapa}
 
 onPress={()=>
-navigation.navigate('Frota')
+navegar('Veiculos')
 }
 
 >
 
 <Text style={styles.botaoTexto}>
-Frota
+🚛 Gestão de Frota
 </Text>
 
 </TouchableOpacity>
@@ -395,8 +643,21 @@ backgroundColor:'#F3F5F8'
 content:{
 padding:20,
 width:'100%',
-maxWidth:600,
+maxWidth:700,
 alignSelf:'center'
+},
+
+loading:{
+flex:1,
+justifyContent:'center',
+alignItems:'center',
+backgroundColor:'#F3F5F8'
+},
+
+loadingTexto:{
+marginTop:15,
+fontSize:16,
+color:'#555'
 },
 
 bloqueado:{
@@ -428,13 +689,27 @@ marginBottom:25
 
 usuarioBox:{
 backgroundColor:'#fff',
-padding:20,
-borderRadius:20,
-marginBottom:25
+padding:22,
+borderRadius:26,
+marginBottom:25,
+
+shadowColor:'#000',
+
+shadowOffset:{
+width:0,
+height:4
+},
+
+shadowOpacity:0.08,
+
+shadowRadius:8,
+
+elevation:3
+
 },
 
 usuarioNome:{
-fontSize:22,
+fontSize:24,
 fontWeight:'bold',
 color:'#111'
 },
@@ -447,7 +722,7 @@ marginTop:5
 
 usuarioNivel:{
 fontSize:15,
-color:'#0A1E40',
+color:'#021B49',
 marginTop:8,
 fontWeight:'bold'
 },
@@ -462,49 +737,59 @@ gap:15
 cardMini:{
 flex:1,
 backgroundColor:'#fff',
-padding:20,
-borderRadius:18
+padding:22,
+borderRadius:24,
+
+shadowColor:'#000',
+
+shadowOffset:{
+width:0,
+height:4
+},
+
+shadowOpacity:0.08,
+
+shadowRadius:8,
+
+elevation:3
+
 },
 
 numero:{
-fontSize:36,
+fontSize:38,
 fontWeight:'bold',
-color:'#0A1E40'
+color:'#021B49'
 },
 
 cardTexto:{
 marginTop:10,
-color:'#555'
+color:'#555',
+fontSize:15
 },
 
 cardGrande:{
-backgroundColor:'#fff',
-padding:25,
-borderRadius:18,
+backgroundColor:'#021B49',
+padding:28,
+borderRadius:28,
 marginBottom:20
 },
 
 numeroGrande:{
-fontSize:48,
+fontSize:54,
 fontWeight:'bold',
-color:'#0A1E40'
+color:'#fff'
 },
 
 cardTextoGrande:{
 marginTop:10,
 fontSize:16,
-color:'#555'
+color:'#fff'
 },
-
-
-// ==========================================
-// SINISTRO
-// ==========================================
 
 cardSinistro:{
 backgroundColor:'#E53935',
-padding:25,
-borderRadius:20,
+padding:28,
+borderRadius:28,
 marginBottom:25
 },
 
@@ -515,7 +800,7 @@ color:'#fff'
 },
 
 sinistroNumero:{
-fontSize:52,
+fontSize:54,
 fontWeight:'bold',
 color:'#fff',
 marginTop:10
@@ -527,15 +812,54 @@ color:'#fff',
 marginTop:5
 },
 
+graficoCard:{
+backgroundColor:'#fff',
+padding:20,
+borderRadius:28,
+marginBottom:25,
 
-// ==========================================
-// BOTÕES
-// ==========================================
+shadowColor:'#000',
+
+shadowOffset:{
+width:0,
+height:4
+},
+
+shadowOpacity:0.08,
+
+shadowRadius:8,
+
+elevation:3
+
+},
+
+graficoTitulo:{
+fontSize:22,
+fontWeight:'bold',
+marginBottom:20,
+color:'#111'
+},
+
+secao:{
+fontSize:22,
+fontWeight:'bold',
+marginBottom:20,
+color:'#111'
+},
+
+botaoChecklist:{
+backgroundColor:'#2CC36B',
+height:62,
+borderRadius:18,
+justifyContent:'center',
+alignItems:'center',
+marginBottom:15
+},
 
 botaoSinistro:{
 backgroundColor:'#E53935',
-height:60,
-borderRadius:15,
+height:62,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
 marginBottom:15
@@ -543,8 +867,8 @@ marginBottom:15
 
 botaoMapa:{
 backgroundColor:'#1F8BFF',
-height:60,
-borderRadius:15,
+height:62,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
 marginBottom:15

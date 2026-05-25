@@ -94,11 +94,6 @@ observacaoGeral,
 setObservacaoGeral
 ]=useState('');
 
-
-// ==========================================
-// NOVOS CAMPOS
-// ==========================================
-
 const[
 tipoChecklistExecucao,
 setTipoChecklistExecucao
@@ -108,6 +103,11 @@ const[
 kmVeiculo,
 setKmVeiculo
 ]=useState('');
+
+
+// ==========================================
+// EMPRESA
+// ==========================================
 
 const empresaId =
 usuario?.empresaId || 'default';
@@ -200,21 +200,9 @@ if(categoria==='truck'){
 
 tipo='pesado';
 
-}else if(categoria==='car'){
-
-tipo='leve';
-
 }else if(categoria==='bus'){
 
 tipo='pesado';
-
-}else if(categoria==='van'){
-
-tipo='leve';
-
-}else if(categoria==='motorcycle'){
-
-tipo='leve';
 
 }else{
 
@@ -226,7 +214,7 @@ tipo='leve';
 
 
 // ==========================================
-// DEFINE CHECKLIST
+// DEFINE MODELO
 // ==========================================
 
 let documentoChecklist=
@@ -248,7 +236,7 @@ documentoChecklist=
 
 
 // ==========================================
-// BUSCA CHECKLIST
+// BUSCA MODELO
 // ==========================================
 
 const modeloRef=
@@ -279,7 +267,7 @@ setModeloChecklist(modelo);
 
 
 // ==========================================
-// INICIA RESPOSTAS
+// RESPOSTAS PADRÃO
 // ==========================================
 
 const respostasIniciais={};
@@ -317,7 +305,7 @@ setLoading(false);
 
 
 // ==========================================
-// ALTERAR STATUS
+// RESPOSTAS
 // ==========================================
 
 function alterarResposta(
@@ -336,10 +324,6 @@ setRespostas((prev)=>({
 }
 
 
-// ==========================================
-// ALTERAR OBSERVAÇÃO
-// ==========================================
-
 function alterarObservacao(
 item,
 texto
@@ -357,7 +341,7 @@ setObservacoes((prev)=>({
 
 
 // ==========================================
-// STORAGE
+// NORMALIZAR
 // ==========================================
 
 function normalizarTextoParaPath(texto){
@@ -366,6 +350,59 @@ return String(texto)
 .normalize('NFD')
 .replace(/[\u0300-\u036f]/g,'')
 .replace(/[^a-zA-Z0-9_-]/g,'_');
+
+}
+
+
+// ==========================================
+// FOTO
+// ==========================================
+
+async function tirarFoto(item){
+
+const permissao=
+
+await ImagePicker.requestCameraPermissionsAsync();
+
+if(!permissao.granted){
+
+Alert.alert(
+'Atenção',
+'Permissão da câmera negada'
+);
+
+return;
+
+}
+
+const resultado=
+
+await ImagePicker.launchCameraAsync({
+
+quality:0.5,
+allowsEditing:true
+
+});
+
+if(resultado.canceled){
+
+return;
+
+}
+
+const foto=
+resultado.assets[0].uri;
+
+setFotos((prev)=>({
+
+...prev,
+
+[item]:[
+...(prev[item] || []),
+foto
+]
+
+}));
 
 }
 
@@ -429,60 +466,7 @@ return fotosEnviadas;
 
 
 // ==========================================
-// FOTO
-// ==========================================
-
-async function tirarFoto(item){
-
-const permissao=
-
-await ImagePicker.requestCameraPermissionsAsync();
-
-if(!permissao.granted){
-
-Alert.alert(
-'Atenção',
-'Permissão da câmera negada'
-);
-
-return;
-
-}
-
-const resultado=
-
-await ImagePicker.launchCameraAsync({
-
-quality:0.5,
-allowsEditing:true
-
-});
-
-if(resultado.canceled){
-
-return;
-
-}
-
-const foto=
-resultado.assets[0].uri;
-
-setFotos((prev)=>({
-
-...prev,
-
-[item]:[
-...(prev[item] || []),
-foto
-]
-
-}));
-
-}
-
-
-// ==========================================
-// SALVAR
+// SALVAR CHECKLIST
 // ==========================================
 
 async function salvarChecklist(){
@@ -513,6 +497,11 @@ try{
 
 setLoading(true);
 
+
+// ==========================================
+// REFERÊNCIA
+// ==========================================
+
 const checklistRef =
 doc(
 collection(
@@ -521,26 +510,64 @@ db,
 )
 );
 
+
+// ==========================================
+// UPLOAD FOTOS
+// ==========================================
+
 const fotosEnviadas =
-await enviarFotos(checklistRef.id);
+await enviarFotos(
+checklistRef.id
+);
+
+
+// ==========================================
+// SALVAR FIREBASE
+// ==========================================
 
 await setDoc(
 checklistRef,
 {
 
-empresaId,
+// ======================================
+// MULTIEMPRESA
+// ======================================
+
+empresaId:
+empresaId || 'default',
+
+
+// ======================================
+// VEÍCULO
+// ======================================
+
+placa:
+veiculo?.placa || '',
 
 veiculo,
 
+
+// ======================================
+// USUÁRIO
+// ======================================
+
 usuario:{
 
-uid:usuario.uid,
+uid:
+usuario?.uid || '',
 
-nome:usuario.nome,
+nome:
+usuario?.nome || '',
 
-cargo:usuario.cargo
+cargo:
+usuario?.cargo || ''
 
 },
+
+
+// ======================================
+// CHECKLIST
+// ======================================
 
 tipoChecklist:
 modeloChecklist?.tipo || '',
@@ -561,7 +588,20 @@ fotosEnviadas,
 
 observacaoGeral,
 
+
+// ======================================
+// STATUS
+// ======================================
+
 status:'concluido',
+
+
+// ======================================
+// DATAS
+// ======================================
+
+createdAt:
+serverTimestamp(),
 
 data:
 serverTimestamp()
@@ -569,10 +609,16 @@ serverTimestamp()
 }
 );
 
+
 Alert.alert(
 'Sucesso',
-'Checklist salvo'
+'Checklist salvo com sucesso'
 );
+
+
+// ==========================================
+// RESET
+// ==========================================
 
 setPlaca('');
 
@@ -643,10 +689,15 @@ Inspeção inteligente da frota
 {/* ========================================== */}
 
 <TextInput
+
 style={styles.input}
+
 placeholder="Digite a placa"
+
 placeholderTextColor="#777"
+
 autoCapitalize="characters"
+
 value={placa}
 
 onChangeText={(texto)=>{
@@ -675,9 +726,13 @@ setPlaca(valor);
 
 
 <TouchableOpacity
+
 style={styles.buscarBtn}
+
 onPress={buscarVeiculo}
+
 disabled={loading}
+
 >
 
 <Text style={styles.buscarTexto}>
@@ -793,12 +848,19 @@ KM do Veículo
 </Text>
 
 <TextInput
+
 style={styles.input}
+
 placeholder="Digite o KM atual"
+
 placeholderTextColor="#777"
+
 keyboardType="numeric"
+
 value={kmVeiculo}
+
 onChangeText={setKmVeiculo}
+
 />
 
 
@@ -962,27 +1024,37 @@ respostas[item]==='nc'
 <>
 
 <TextInput
+
 style={styles.obs}
+
 placeholder="Descreva o problema..."
+
 placeholderTextColor="#777"
+
 multiline
+
 value={
 observacoes[item] || ''
 }
+
 onChangeText={(t)=>
 alterarObservacao(
 item,
 t
 )
 }
+
 />
 
 
 <TouchableOpacity
+
 style={styles.fotoBtn}
+
 onPress={()=>
 tirarFoto(item)
 }
+
 >
 
 <Text style={styles.fotoTexto}>
@@ -1020,19 +1092,30 @@ Observação Geral
 </Text>
 
 <TextInput
+
 style={styles.obsGrande}
+
 placeholder="Digite observações gerais..."
+
 placeholderTextColor="#777"
+
 multiline
+
 value={observacaoGeral}
+
 onChangeText={setObservacaoGeral}
+
 />
 
 
 <TouchableOpacity
+
 style={styles.salvarBtn}
+
 onPress={salvarChecklist}
+
 disabled={loading}
+
 >
 
 {loading ? (

@@ -1,7 +1,7 @@
 import React,{
 useState,
 useContext,
-useCallback
+useEffect
 } from 'react';
 
 import {
@@ -10,12 +10,10 @@ Text,
 StyleSheet,
 ScrollView,
 TouchableOpacity,
-ActivityIndicator
+ActivityIndicator,
+TextInput,
+RefreshControl
 } from 'react-native';
-
-import {
-useFocusEffect
-} from '@react-navigation/native';
 
 import {
 collection,
@@ -47,8 +45,18 @@ const{
 usuario
 }=useContext(AuthContext);
 
+
+// ==========================================
+// EMPRESA
+// ==========================================
+
 const empresaId =
 usuario?.empresaId || 'default';
+
+
+// ==========================================
+// STATES
+// ==========================================
 
 const[
 usuarios,
@@ -56,9 +64,29 @@ setUsuarios
 ]=useState([]);
 
 const[
+usuariosFiltrados,
+setUsuariosFiltrados
+]=useState([]);
+
+const[
 loading,
 setLoading
 ]=useState(true);
+
+const[
+refreshing,
+setRefreshing
+]=useState(false);
+
+const[
+busca,
+setBusca
+]=useState('');
+
+const[
+filtroNivel,
+setFiltroNivel
+]=useState('todos');
 
 
 // ==========================================
@@ -70,6 +98,11 @@ async function buscarUsuarios(){
 try{
 
 setLoading(true);
+
+
+// ==========================================
+// QUERY MULTIEMPRESA
+// ==========================================
 
 const querySnapshot=
 await getDocs(
@@ -110,6 +143,7 @@ console.log(e);
 finally{
 
 setLoading(false);
+setRefreshing(false);
 
 }
 
@@ -117,18 +151,99 @@ setLoading(false);
 
 
 // ==========================================
-// AUTO REFRESH
+// LOAD
 // ==========================================
 
-useFocusEffect(
+useEffect(()=>{
 
-useCallback(()=>{
+if(usuario){
 
 buscarUsuarios();
 
-},[])
+}
+
+},[usuario]);
+
+
+// ==========================================
+// FILTROS
+// ==========================================
+
+useEffect(()=>{
+
+let lista=[...usuarios];
+
+
+// ==========================================
+// BUSCA
+// ==========================================
+
+if(busca){
+
+lista = lista.filter((item)=>{
+
+const texto =
+busca.toLowerCase();
+
+return(
+
+item.nome
+?.toLowerCase()
+.includes(texto)
+
+||
+
+item.email
+?.toLowerCase()
+.includes(texto)
+
+||
+
+item.cargo
+?.toLowerCase()
+.includes(texto)
 
 );
+
+});
+
+}
+
+
+// ==========================================
+// NÍVEL
+// ==========================================
+
+if(filtroNivel !== 'todos'){
+
+lista = lista.filter((item)=>
+
+item.nivel === filtroNivel
+
+);
+
+}
+
+setUsuariosFiltrados(lista);
+
+},[
+usuarios,
+busca,
+filtroNivel
+]);
+
+
+// ==========================================
+// REFRESH
+// ==========================================
+
+function atualizar(){
+
+setRefreshing(true);
+
+buscarUsuarios();
+
+}
 
 
 // ==========================================
@@ -145,6 +260,28 @@ await signOut(auth);
 // ==========================================
 // PERMISSÃO
 // ==========================================
+
+if(!usuario){
+
+return(
+
+<View style={styles.loading}>
+
+<ActivityIndicator
+size="large"
+color="#2CC36B"
+/>
+
+<Text style={styles.loadingTexto}>
+Carregando...
+</Text>
+
+</View>
+
+);
+
+}
+
 
 if(
 usuario?.nivel !== 'admin' &&
@@ -193,6 +330,24 @@ return '👤';
 
 
 // ==========================================
+// TOTALIZADORES
+// ==========================================
+
+const totalAdmins =
+usuarios.filter(
+u=>u.nivel==='admin'
+).length;
+
+const totalSupervisores =
+usuarios.filter(
+u=>u.nivel==='supervisor'
+).length;
+
+const totalUsuarios =
+usuarios.length;
+
+
+// ==========================================
 // LOADING
 // ==========================================
 
@@ -206,6 +361,10 @@ return(
 size="large"
 color="#2CC36B"
 />
+
+<Text style={styles.loadingTexto}>
+Carregando usuários...
+</Text>
 
 </View>
 
@@ -221,20 +380,38 @@ color="#2CC36B"
 return(
 
 <ScrollView
+
 style={styles.container}
+
 showsVerticalScrollIndicator={false}
+
 keyboardShouldPersistTaps="handled"
+
 nestedScrollEnabled={true}
+
 contentContainerStyle={{
 paddingBottom:120
 }}
+
+refreshControl={
+
+<RefreshControl
+
+refreshing={refreshing}
+
+onRefresh={atualizar}
+
+/>
+
+}
+
 >
 
 <View style={styles.content}>
 
 
 <Text style={styles.titulo}>
-Usuários
+👥 Usuários
 </Text>
 
 <Text style={styles.sub}>
@@ -243,7 +420,61 @@ Usuários cadastrados no sistema
 
 
 {/* ========================================== */}
-{/* CADASTRAR USUÁRIO */}
+{/* CARDS */}
+{/* ========================================== */}
+
+<View style={styles.cardsRow}>
+
+
+<View style={[
+styles.cardInfo,
+{
+backgroundColor:'#021B49'
+}
+]}>
+<Text style={styles.cardNumero}>
+{totalUsuarios}
+</Text>
+<Text style={styles.cardTexto}>
+Usuários
+</Text>
+</View>
+
+
+<View style={[
+styles.cardInfo,
+{
+backgroundColor:'#2CC36B'
+}
+]}>
+<Text style={styles.cardNumero}>
+{totalAdmins}
+</Text>
+<Text style={styles.cardTexto}>
+Admins
+</Text>
+</View>
+
+
+<View style={[
+styles.cardInfo,
+{
+backgroundColor:'#F2994A'
+}
+]}>
+<Text style={styles.cardNumero}>
+{totalSupervisores}
+</Text>
+<Text style={styles.cardTexto}>
+Supervisores
+</Text>
+</View>
+
+</View>
+
+
+{/* ========================================== */}
+{/* CADASTRAR */}
 {/* ========================================== */}
 
 <TouchableOpacity
@@ -266,10 +497,85 @@ navigation.navigate(
 
 
 {/* ========================================== */}
+{/* BUSCA */}
+{/* ========================================== */}
+
+<TextInput
+
+style={styles.inputBusca}
+
+placeholder="Buscar usuário"
+
+placeholderTextColor="#777"
+
+value={busca}
+
+onChangeText={setBusca}
+
+/>
+
+
+{/* ========================================== */}
+{/* FILTROS */}
+{/* ========================================== */}
+
+<ScrollView
+horizontal
+showsHorizontalScrollIndicator={false}
+style={styles.filtrosRow}
+>
+
+{[
+'todos',
+'admin',
+'supervisor',
+'usuario'
+].map((item)=>(
+
+<TouchableOpacity
+
+key={item}
+
+style={[
+
+styles.filtroBtn,
+
+filtroNivel===item &&
+styles.filtroAtivo
+
+]}
+
+onPress={()=>
+setFiltroNivel(item)
+}
+
+>
+
+<Text style={[
+
+styles.filtroTexto,
+
+filtroNivel===item &&
+styles.filtroTextoAtivo
+
+]}>
+
+{item}
+
+</Text>
+
+</TouchableOpacity>
+
+))}
+
+</ScrollView>
+
+
+{/* ========================================== */}
 {/* LISTA */}
 {/* ========================================== */}
 
-{usuarios.map((item)=>(
+{usuariosFiltrados.map((item)=>(
 
 <TouchableOpacity
 key={item.id}
@@ -326,12 +632,20 @@ activeOpacity={0.9}
 {/* VAZIO */}
 {/* ========================================== */}
 
-{usuarios.length===0 &&(
+{usuariosFiltrados.length===0 &&(
 
 <View style={styles.vazio}>
 
+<Text style={styles.vazioEmoji}>
+👥
+</Text>
+
+<Text style={styles.vazioTitulo}>
+Nenhum usuário encontrado
+</Text>
+
 <Text style={styles.vazioTexto}>
-Nenhum usuário cadastrado
+Tente alterar os filtros ou cadastrar um novo usuário.
 </Text>
 
 </View>
@@ -372,8 +686,9 @@ backgroundColor:'#F3F5F8'
 
 content:{
 padding:20,
+paddingTop:50,
 width:'100%',
-maxWidth:600,
+maxWidth:700,
 alignSelf:'center'
 },
 
@@ -382,6 +697,12 @@ flex:1,
 justifyContent:'center',
 alignItems:'center',
 backgroundColor:'#F3F5F8'
+},
+
+loadingTexto:{
+marginTop:15,
+fontSize:16,
+color:'#555'
 },
 
 bloqueado:{
@@ -398,26 +719,53 @@ color:'#E53935'
 },
 
 titulo:{
-fontSize:36,
+fontSize:34,
 fontWeight:'bold',
-marginTop:50,
 color:'#111'
 },
 
 sub:{
-fontSize:18,
+fontSize:16,
 color:'#666',
-marginTop:8,
-marginBottom:25
+marginTop:6,
+marginBottom:20
+},
+
+cardsRow:{
+flexDirection:'row',
+justifyContent:'space-between',
+marginBottom:20,
+gap:10
+},
+
+cardInfo:{
+flex:1,
+paddingVertical:16,
+paddingHorizontal:10,
+borderRadius:22,
+alignItems:'center'
+},
+
+cardNumero:{
+fontSize:30,
+fontWeight:'bold',
+color:'#fff'
+},
+
+cardTexto:{
+color:'#fff',
+fontWeight:'bold',
+marginTop:6,
+fontSize:13
 },
 
 botaoCadastrar:{
 backgroundColor:'#2CC36B',
 height:58,
-borderRadius:16,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
-marginBottom:20
+marginBottom:18
 },
 
 botaoTexto:{
@@ -426,11 +774,62 @@ fontWeight:'bold',
 fontSize:18
 },
 
+inputBusca:{
+backgroundColor:'#fff',
+height:58,
+borderRadius:18,
+paddingHorizontal:18,
+fontSize:16,
+marginBottom:15,
+color:'#111'
+},
+
+filtrosRow:{
+marginBottom:18
+},
+
+filtroBtn:{
+backgroundColor:'#fff',
+paddingHorizontal:18,
+paddingVertical:12,
+borderRadius:16,
+marginRight:10
+},
+
+filtroAtivo:{
+backgroundColor:'#021B49'
+},
+
+filtroTexto:{
+fontWeight:'bold',
+color:'#555',
+textTransform:'capitalize',
+fontSize:15
+},
+
+filtroTextoAtivo:{
+color:'#fff'
+},
+
 card:{
 backgroundColor:'#fff',
-padding:20,
-borderRadius:20,
-marginBottom:18
+padding:22,
+borderRadius:26,
+marginBottom:18,
+
+shadowColor:'#000',
+
+shadowOffset:{
+width:0,
+height:4
+},
+
+shadowOpacity:0.08,
+
+shadowRadius:8,
+
+elevation:3
+
 },
 
 topo:{
@@ -439,7 +838,7 @@ alignItems:'center'
 },
 
 emoji:{
-fontSize:34,
+fontSize:38,
 marginRight:15
 },
 
@@ -471,26 +870,41 @@ marginBottom:8
 nivel:{
 fontSize:15,
 fontWeight:'bold',
-color:'#0A1E40',
+color:'#021B49',
 marginTop:6
 },
 
 vazio:{
 backgroundColor:'#fff',
-padding:30,
-borderRadius:20,
-alignItems:'center'
+padding:40,
+borderRadius:28,
+alignItems:'center',
+marginTop:20
+},
+
+vazioEmoji:{
+fontSize:52,
+marginBottom:10
+},
+
+vazioTitulo:{
+fontSize:22,
+fontWeight:'bold',
+color:'#111',
+marginBottom:10
 },
 
 vazioTexto:{
-fontSize:16,
-color:'#777'
+fontSize:15,
+color:'#777',
+textAlign:'center',
+lineHeight:22
 },
 
 botaoSair:{
 backgroundColor:'#111',
 height:60,
-borderRadius:15,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
 marginTop:10,

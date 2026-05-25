@@ -1,7 +1,7 @@
 import React,{
 useState,
 useContext,
-useCallback
+useEffect
 } from 'react';
 
 import {
@@ -13,12 +13,9 @@ TouchableOpacity,
 ActivityIndicator,
 Alert,
 Modal,
-TextInput
+TextInput,
+RefreshControl
 } from 'react-native';
-
-import {
-useFocusEffect
-} from '@react-navigation/native';
 
 import {
 collection,
@@ -54,6 +51,14 @@ usuario
 
 
 // ==========================================
+// EMPRESA
+// ==========================================
+
+const empresaId =
+usuario?.empresaId || 'default';
+
+
+// ==========================================
 // STATES
 // ==========================================
 
@@ -63,9 +68,19 @@ setVeiculos
 ]=useState([]);
 
 const[
+veiculosFiltrados,
+setVeiculosFiltrados
+]=useState([]);
+
+const[
 loading,
 setLoading
 ]=useState(true);
+
+const[
+refreshing,
+setRefreshing
+]=useState(false);
 
 const[
 sincronizando,
@@ -92,8 +107,10 @@ busca,
 setBusca
 ]=useState('');
 
-const empresaId =
-usuario?.empresaId || 'default';
+const[
+filtroStatus,
+setFiltroStatus
+]=useState('todos');
 
 
 // ==========================================
@@ -105,6 +122,11 @@ async function carregarVeiculos(){
 try{
 
 setLoading(true);
+
+
+// ==========================================
+// QUERY MULTIEMPRESA
+// ==========================================
 
 const q=query(
 collection(
@@ -143,6 +165,7 @@ console.log(e);
 }finally{
 
 setLoading(false);
+setRefreshing(false);
 
 }
 
@@ -150,18 +173,105 @@ setLoading(false);
 
 
 // ==========================================
-// AUTO REFRESH
+// LOAD
 // ==========================================
 
-useFocusEffect(
+useEffect(()=>{
 
-useCallback(()=>{
+if(usuario){
 
 carregarVeiculos();
 
-},[])
+}
+
+},[usuario]);
+
+
+// ==========================================
+// FILTROS
+// ==========================================
+
+useEffect(()=>{
+
+let lista=[...veiculos];
+
+
+// ==========================================
+// BUSCA
+// ==========================================
+
+if(busca){
+
+const texto =
+busca.toLowerCase();
+
+lista = lista.filter((item)=>{
+
+return(
+
+item.placa
+?.toLowerCase()
+.includes(texto)
+
+||
+
+item.modelo
+?.toLowerCase()
+.includes(texto)
+
+||
+
+item.categoria
+?.toLowerCase()
+.includes(texto)
+
+||
+
+item.tipoOperacional
+?.toLowerCase()
+.includes(texto)
 
 );
+
+});
+
+}
+
+
+// ==========================================
+// STATUS
+// ==========================================
+
+if(filtroStatus !== 'todos'){
+
+lista = lista.filter((item)=>
+
+item.status === filtroStatus
+
+);
+
+}
+
+setVeiculosFiltrados(lista);
+
+},[
+veiculos,
+busca,
+filtroStatus
+]);
+
+
+// ==========================================
+// REFRESH
+// ==========================================
+
+function atualizar(){
+
+setRefreshing(true);
+
+carregarVeiculos();
+
+}
 
 
 // ==========================================
@@ -317,48 +427,30 @@ Alert.alert(
 
 
 // ==========================================
-// FILTRO
+// PERMISSÃO
 // ==========================================
 
-const listaFiltrada=
-
-veiculos.filter((item)=>{
-
-const texto=
-busca.toLowerCase();
+if(!usuario){
 
 return(
 
-item.placa
-?.toLowerCase()
-.includes(texto)
+<View style={styles.loading}>
 
-||
+<ActivityIndicator
+size="large"
+color="#2CC36B"
+/>
 
-item.modelo
-?.toLowerCase()
-.includes(texto)
+<Text style={styles.loadingTexto}>
+Carregando...
+</Text>
 
-||
-
-item.categoria
-?.toLowerCase()
-.includes(texto)
-
-||
-
-item.tipoOperacional
-?.toLowerCase()
-.includes(texto)
+</View>
 
 );
 
-});
+}
 
-
-// ==========================================
-// PERMISSÃO
-// ==========================================
 
 if(
 usuario?.nivel !== 'admin' &&
@@ -381,6 +473,24 @@ Acesso negado
 
 
 // ==========================================
+// TOTALIZADORES
+// ==========================================
+
+const totalOnline =
+veiculos.filter(
+v=>v.status==='online'
+).length;
+
+const totalOffline =
+veiculos.filter(
+v=>v.status!=='online'
+).length;
+
+const totalVeiculos =
+veiculos.length;
+
+
+// ==========================================
 // LOADING
 // ==========================================
 
@@ -394,6 +504,10 @@ return(
 size="large"
 color="#2CC36B"
 />
+
+<Text style={styles.loadingTexto}>
+Carregando veículos...
+</Text>
 
 </View>
 
@@ -411,23 +525,93 @@ return(
 <>
 
 <ScrollView
+
 style={styles.container}
+
 showsVerticalScrollIndicator={false}
+
 contentContainerStyle={{
 paddingBottom:120
 }}
+
+refreshControl={
+
+<RefreshControl
+
+refreshing={refreshing}
+
+onRefresh={atualizar}
+
+/>
+
+}
+
 >
 
 <View style={styles.content}>
 
 
 <Text style={styles.titulo}>
-Veículos
+🚛 Veículos
 </Text>
 
 <Text style={styles.sub}>
-Frota cadastrada
+Gestão inteligente da frota
 </Text>
+
+
+{/* ========================================== */}
+{/* TOTALIZADORES */}
+{/* ========================================== */}
+
+<View style={styles.cardsRow}>
+
+
+<View style={[
+styles.cardInfo,
+{
+backgroundColor:'#021B49'
+}
+]}>
+<Text style={styles.cardNumero}>
+{totalVeiculos}
+</Text>
+<Text style={styles.cardTexto}>
+Frota
+</Text>
+</View>
+
+
+<View style={[
+styles.cardInfo,
+{
+backgroundColor:'#2CC36B'
+}
+]}>
+<Text style={styles.cardNumero}>
+{totalOnline}
+</Text>
+<Text style={styles.cardTexto}>
+Online
+</Text>
+</View>
+
+
+<View style={[
+styles.cardInfo,
+{
+backgroundColor:'#E53935'
+}
+]}>
+<Text style={styles.cardNumero}>
+{totalOffline}
+</Text>
+<Text style={styles.cardTexto}>
+Offline
+</Text>
+</View>
+
+</View>
 
 
 {/* ========================================== */}
@@ -467,9 +651,84 @@ placeholderTextColor="#777"
 
 value={busca}
 
-onChangeText={setBusca}
+onChangeText={(texto)=>{
+
+let valor=
+texto
+.toUpperCase()
+.replace(/[^A-Z0-9]/g,'');
+
+if(valor.length > 3){
+
+valor=
+valor.slice(0,3)
++
+'-'
++
+valor.slice(3,7);
+
+}
+
+setBusca(valor);
+
+}}
 
 />
+
+
+{/* ========================================== */}
+{/* FILTROS */}
+{/* ========================================== */}
+
+<ScrollView
+horizontal
+showsHorizontalScrollIndicator={false}
+style={styles.filtrosRow}
+>
+
+{[
+'todos',
+'online',
+'offline'
+].map((item)=>(
+
+<TouchableOpacity
+
+key={item}
+
+style={[
+
+styles.filtroBtn,
+
+filtroStatus===item &&
+styles.filtroAtivo
+
+]}
+
+onPress={()=>
+setFiltroStatus(item)
+}
+
+>
+
+<Text style={[
+
+styles.filtroTexto,
+
+filtroStatus===item &&
+styles.filtroTextoAtivo
+
+]}>
+
+{item}
+
+</Text>
+
+</TouchableOpacity>
+
+))}
+
+</ScrollView>
 
 
 {/* ========================================== */}
@@ -497,7 +756,7 @@ disabled={sincronizando}
 {/* LISTA */}
 {/* ========================================== */}
 
-{listaFiltrada.map((item)=>(
+{veiculosFiltrados.map((item)=>(
 
 <View
 key={item.id}
@@ -603,12 +862,20 @@ Editar
 {/* VAZIO */}
 {/* ========================================== */}
 
-{listaFiltrada.length===0 &&(
+{veiculosFiltrados.length===0 &&(
 
 <View style={styles.vazio}>
 
-<Text style={styles.vazioTexto}>
+<Text style={styles.vazioEmoji}>
+🚛
+</Text>
+
+<Text style={styles.vazioTitulo}>
 Nenhum veículo encontrado
+</Text>
+
+<Text style={styles.vazioTexto}>
+Tente alterar os filtros ou sincronizar com o Traccar.
 </Text>
 
 </View>
@@ -708,6 +975,7 @@ backgroundColor:'#F3F5F8'
 
 content:{
 padding:20,
+paddingTop:50,
 width:'100%',
 maxWidth:700,
 alignSelf:'center'
@@ -718,6 +986,12 @@ flex:1,
 justifyContent:'center',
 alignItems:'center',
 backgroundColor:'#F3F5F8'
+},
+
+loadingTexto:{
+marginTop:15,
+fontSize:16,
+color:'#555'
 },
 
 bloqueado:{
@@ -734,45 +1008,62 @@ color:'#E53935'
 },
 
 titulo:{
-fontSize:38,
+fontSize:34,
 fontWeight:'bold',
-marginTop:50,
 color:'#111'
 },
 
 sub:{
-fontSize:18,
+fontSize:16,
 color:'#666',
-marginTop:8,
+marginTop:6,
 marginBottom:20
+},
+
+cardsRow:{
+flexDirection:'row',
+justifyContent:'space-between',
+marginBottom:20,
+gap:10
+},
+
+cardInfo:{
+flex:1,
+paddingVertical:16,
+paddingHorizontal:10,
+borderRadius:22,
+alignItems:'center'
+},
+
+cardNumero:{
+fontSize:30,
+fontWeight:'bold',
+color:'#fff'
+},
+
+cardTexto:{
+color:'#fff',
+fontWeight:'bold',
+marginTop:6,
+fontSize:13
 },
 
 botaoCadastrar:{
 backgroundColor:'#2CC36B',
 height:58,
-borderRadius:16,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
-marginBottom:20
-},
-
-inputBusca:{
-backgroundColor:'#fff',
-height:55,
-borderRadius:14,
-paddingHorizontal:16,
-fontSize:16,
-marginBottom:20,
-color:'#111'
+marginBottom:18
 },
 
 botaoSync:{
-backgroundColor:'#0A1E40',
+backgroundColor:'#021B49',
 height:58,
-borderRadius:16,
+borderRadius:18,
 justifyContent:'center',
 alignItems:'center',
-marginBottom:25
+marginBottom:20
 },
 
 botaoTexto:{
@@ -781,11 +1072,62 @@ fontSize:18,
 fontWeight:'bold'
 },
 
+inputBusca:{
+backgroundColor:'#fff',
+height:58,
+borderRadius:18,
+paddingHorizontal:18,
+fontSize:16,
+marginBottom:15,
+color:'#111'
+},
+
+filtrosRow:{
+marginBottom:18
+},
+
+filtroBtn:{
+backgroundColor:'#fff',
+paddingHorizontal:18,
+paddingVertical:12,
+borderRadius:16,
+marginRight:10
+},
+
+filtroAtivo:{
+backgroundColor:'#021B49'
+},
+
+filtroTexto:{
+fontWeight:'bold',
+color:'#555',
+textTransform:'capitalize',
+fontSize:15
+},
+
+filtroTextoAtivo:{
+color:'#fff'
+},
+
 card:{
 backgroundColor:'#FFF',
-padding:20,
-borderRadius:20,
-marginBottom:18
+padding:22,
+borderRadius:28,
+marginBottom:18,
+
+shadowColor:'#000',
+
+shadowOffset:{
+width:0,
+height:4
+},
+
+shadowOpacity:0.08,
+
+shadowRadius:8,
+
+elevation:3
+
 },
 
 topo:{
@@ -796,16 +1138,16 @@ marginBottom:12
 },
 
 nome:{
-fontSize:22,
+fontSize:24,
 fontWeight:'bold',
 color:'#111',
 flex:1
 },
 
 status:{
-paddingHorizontal:12,
-paddingVertical:5,
-borderRadius:10
+paddingHorizontal:14,
+paddingVertical:7,
+borderRadius:12
 },
 
 statusTexto:{
@@ -822,11 +1164,11 @@ marginTop:6
 },
 
 editarBtn:{
-backgroundColor:'#0A1E40',
-paddingHorizontal:15,
-paddingVertical:10,
-borderRadius:10,
-marginTop:15,
+backgroundColor:'#021B49',
+paddingHorizontal:18,
+paddingVertical:12,
+borderRadius:12,
+marginTop:18,
 alignSelf:'flex-start'
 },
 
@@ -837,14 +1179,29 @@ fontWeight:'bold'
 
 vazio:{
 backgroundColor:'#FFF',
-padding:30,
-borderRadius:20,
-alignItems:'center'
+padding:40,
+borderRadius:28,
+alignItems:'center',
+marginTop:20
+},
+
+vazioEmoji:{
+fontSize:52,
+marginBottom:10
+},
+
+vazioTitulo:{
+fontSize:22,
+fontWeight:'bold',
+color:'#111',
+marginBottom:10
 },
 
 vazioTexto:{
-fontSize:16,
-color:'#777'
+fontSize:15,
+color:'#777',
+textAlign:'center',
+lineHeight:22
 },
 
 modalBg:{
@@ -856,8 +1213,8 @@ padding:20
 
 modal:{
 backgroundColor:'#fff',
-borderRadius:20,
-padding:20
+borderRadius:28,
+padding:22
 },
 
 modalTitulo:{
@@ -876,9 +1233,9 @@ color:'#111'
 
 input:{
 backgroundColor:'#F3F5F8',
-height:55,
-borderRadius:14,
-paddingHorizontal:15,
+height:58,
+borderRadius:16,
+paddingHorizontal:16,
 fontSize:16,
 marginBottom:10,
 color:'#111'
@@ -886,8 +1243,8 @@ color:'#111'
 
 salvarBtn:{
 backgroundColor:'#2CC36B',
-height:55,
-borderRadius:14,
+height:58,
+borderRadius:16,
 justifyContent:'center',
 alignItems:'center',
 marginTop:15
@@ -900,7 +1257,7 @@ fontSize:18
 },
 
 cancelarBtn:{
-marginTop:15,
+marginTop:18,
 alignItems:'center'
 },
 
