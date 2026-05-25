@@ -31,6 +31,10 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 
+import {
+gerarQrCodeDataUri
+} from '../services/qrcode';
+
 export default function DetalhesSinistroScreen({
 
 route,
@@ -188,16 +192,15 @@ return '#999';
 
 
 const qrPayload =
-encodeURIComponent(
 JSON.stringify({
 placa:sinistro?.placa,
 motorista:sinistro?.motorista,
 data:sinistro?.dataOcorrencia
 })
-);
+;
 
 const qrUrl =
-`https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${qrPayload}`;
+await gerarQrCodeDataUri(qrPayload);
 
 
 const html = `

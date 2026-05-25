@@ -428,7 +428,7 @@ export default function HistoricoScreen({
                       Object.values(
                         item.respostas || {}
                       ).filter((v) =>
-                        v === 'ruim' ||
+                        v === 'alerta' ||
                         v === 'nc'
                       ).length
                     }
