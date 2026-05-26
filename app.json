@@ -4,36 +4,26 @@
     "slug": "sis-checklist",
     "version": "1.0.0",
     "orientation": "portrait",
-
     "icon": "./assets/icon.png",
-
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "cover",
       "backgroundColor": "#001E3D"
     },
-
     "ios": {
       "supportsTablet": true
     },
-
     "android": {
-
       "package": "com.sisit.checklist",
-
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#0A1E40"
       }
-
     },
-
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
     "plugins": [
       [
         "expo-image-picker",
@@ -43,6 +33,11 @@
           "microphonePermission": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "07f5eda7-cba0-4a28-aa19-03ceb43c3ffa"
+      }
+    }
   }
 }
