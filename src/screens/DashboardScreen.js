@@ -1,7 +1,8 @@
 import React,{
 useState,
 useContext,
-useEffect
+useEffect,
+useCallback
 } from 'react';
 
 import {
@@ -20,6 +21,10 @@ getDocs,
 query,
 where
 } from 'firebase/firestore';
+
+import {
+useFocusEffect
+} from '@react-navigation/native';
 
 import {
 db
@@ -85,7 +90,7 @@ setGraficoChecklist
 
 
 // ==========================================
-// LOAD
+// LOAD INICIAL
 // ==========================================
 
 useEffect(()=>{
@@ -97,6 +102,25 @@ carregarDados();
 }
 
 },[usuario]);
+
+
+// ==========================================
+// AUTO UPDATE AO VOLTAR
+// ==========================================
+
+useFocusEffect(
+
+useCallback(()=>{
+
+if(usuario){
+
+carregarDados();
+
+}
+
+},[usuario])
+
+);
 
 
 // ==========================================
@@ -345,10 +369,6 @@ paddingBottom:120
 
 <View style={styles.content}>
 
-
-{/* ========================================== */}
-{/* HEADER */}
-{/* ========================================== */}
 
 <Text style={styles.titulo}>
 🚛 SIS Dashboard

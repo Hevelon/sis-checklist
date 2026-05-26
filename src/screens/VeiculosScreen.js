@@ -1,7 +1,7 @@
 import React,{
 useState,
-useContext,
-useEffect
+useEffect,
+useContext
 } from 'react';
 
 import {
@@ -10,21 +10,22 @@ Text,
 StyleSheet,
 ScrollView,
 TouchableOpacity,
-ActivityIndicator,
-Alert,
-Modal,
 TextInput,
+Alert,
+ActivityIndicator,
 RefreshControl
 } from 'react-native';
 
 import {
 collection,
 getDocs,
-doc,
-setDoc,
+addDoc,
 updateDoc,
+deleteDoc,
+doc,
 query,
 where,
+setDoc,
 serverTimestamp
 } from 'firebase/firestore';
 
@@ -50,11 +51,6 @@ const{
 usuario
 }=useContext(AuthContext);
 
-
-// ==========================================
-// EMPRESA
-// ==========================================
-
 const empresaId =
 usuario?.empresaId || 'default';
 
@@ -66,11 +62,6 @@ usuario?.empresaId || 'default';
 const[
 veiculos,
 setVeiculos
-]=useState([]);
-
-const[
-veiculosFiltrados,
-setVeiculosFiltrados
 ]=useState([]);
 
 const[
@@ -89,9 +80,14 @@ setSincronizando
 ]=useState(false);
 
 const[
-editando,
-setEditando
-]=useState(null);
+placa,
+setPlaca
+]=useState('');
+
+const[
+modelo,
+setModelo
+]=useState('');
 
 const[
 categoria,
@@ -104,41 +100,44 @@ setTipoOperacional
 ]=useState('');
 
 const[
+traccarId,
+setTraccarId
+]=useState('');
+
+const[
+editando,
+setEditando
+]=useState(null);
+
+const[
 busca,
 setBusca
 ]=useState('');
 
-const[
-filtroStatus,
-setFiltroStatus
-]=useState('todos');
-
 
 // ==========================================
-// CARREGAR VEÍCULOS
+// BUSCAR VEÍCULOS
 // ==========================================
 
-async function carregarVeiculos(){
+async function buscarVeiculos(){
 
 try{
 
 setLoading(true);
 
-
-// ==========================================
-// QUERY MULTIEMPRESA
-// ==========================================
-
 const q=query(
+
 collection(
 db,
 'veiculos'
 ),
+
 where(
 'empresaId',
 '==',
 empresaId
 )
+
 );
 
 const querySnapshot=
@@ -163,6 +162,11 @@ setVeiculos(lista);
 
 console.log(e);
 
+Alert.alert(
+'Erro',
+'Erro ao buscar veículos'
+);
+
 }finally{
 
 setLoading(false);
@@ -181,85 +185,11 @@ useEffect(()=>{
 
 if(usuario){
 
-carregarVeiculos();
+buscarVeiculos();
 
 }
 
 },[usuario]);
-
-
-// ==========================================
-// FILTROS
-// ==========================================
-
-useEffect(()=>{
-
-let lista=[...veiculos];
-
-
-// ==========================================
-// BUSCA
-// ==========================================
-
-if(busca){
-
-const texto =
-busca.toLowerCase();
-
-lista = lista.filter((item)=>{
-
-return(
-
-item.placa
-?.toLowerCase()
-.includes(texto)
-
-||
-
-item.modelo
-?.toLowerCase()
-.includes(texto)
-
-||
-
-item.categoria
-?.toLowerCase()
-.includes(texto)
-
-||
-
-item.tipoOperacional
-?.toLowerCase()
-.includes(texto)
-
-);
-
-});
-
-}
-
-
-// ==========================================
-// STATUS
-// ==========================================
-
-if(filtroStatus !== 'todos'){
-
-lista = lista.filter((item)=>
-
-item.status === filtroStatus
-
-);
-
-}
-
-setVeiculosFiltrados(lista);
-
-},[
-veiculos,
-busca,
-filtroStatus
-]);
 
 
 // ==========================================
@@ -270,7 +200,7 @@ function atualizar(){
 
 setRefreshing(true);
 
-carregarVeiculos();
+buscarVeiculos();
 
 }
 
@@ -289,7 +219,7 @@ const response=
 await buscarVeiculosTraccar();
 
 const lista=
-response.data;
+response.data || [];
 
 for(const item of lista){
 
@@ -356,7 +286,7 @@ Alert.alert(
 'Veículos sincronizados'
 );
 
-carregarVeiculos();
+buscarVeiculos();
 
 }catch(e){
 
@@ -377,12 +307,66 @@ setSincronizando(false);
 
 
 // ==========================================
-// SALVAR EDIÇÃO
+// RESET FORM
 // ==========================================
 
-async function salvarEdicao(){
+function limparFormulario(){
+
+setPlaca('');
+setModelo('');
+setCategoria('');
+setTipoOperacional('');
+setTraccarId('');
+setEditando(null);
+
+}
+
+
+// ==========================================
+// SALVAR
+// ==========================================
+
+async function salvarVeiculo(){
+
+if(
+!placa ||
+!modelo
+){
+
+Alert.alert(
+'Atenção',
+'Preencha placa e modelo'
+);
+
+return;
+
+}
 
 try{
+
+const dados={
+
+empresaId,
+
+placa:
+placa.toUpperCase(),
+
+modelo,
+
+categoria,
+
+tipoOperacional,
+
+traccarId,
+
+status:'offline',
+
+createdAt:
+new Date()
+
+};
+
+if(editando){
 
 await updateDoc(
 
@@ -392,15 +376,7 @@ db,
 editando.id
 ),
 
-{
-
-empresaId,
-
-categoria,
-tipoOperacional:
-tipoOperacional || null
-
-}
+dados
 
 );
 
@@ -409,9 +385,29 @@ Alert.alert(
 'Veículo atualizado'
 );
 
-setEditando(null);
+}else{
 
-carregarVeiculos();
+await addDoc(
+
+collection(
+db,
+'veiculos'
+),
+
+dados
+
+);
+
+Alert.alert(
+'Sucesso',
+'Veículo cadastrado'
+);
+
+}
+
+limparFormulario();
+
+buscarVeiculos();
 
 }catch(e){
 
@@ -419,7 +415,7 @@ console.log(e);
 
 Alert.alert(
 'Erro',
-'Erro ao atualizar veículo'
+'Erro ao salvar veículo'
 );
 
 }
@@ -428,67 +424,108 @@ Alert.alert(
 
 
 // ==========================================
-// PERMISSÃO
+// EXCLUIR VEÍCULO
 // ==========================================
 
-if(!usuario){
+function confirmarExcluir(item){
+
+Alert.alert(
+
+'Excluir veículo',
+
+`Deseja excluir ${item.placa}?`,
+
+[
+{
+text:'Cancelar',
+style:'cancel'
+},
+
+{
+text:'Excluir',
+
+style:'destructive',
+
+onPress:()=>excluirVeiculo(item)
+}
+]
+
+);
+
+}
+
+
+async function excluirVeiculo(item){
+
+try{
+
+await deleteDoc(
+
+doc(
+db,
+'veiculos',
+item.id
+)
+
+);
+
+Alert.alert(
+'Sucesso',
+'Veículo excluído'
+);
+
+buscarVeiculos();
+
+}catch(e){
+
+console.log(e);
+
+Alert.alert(
+'Erro',
+'Erro ao excluir veículo'
+);
+
+}
+
+}
+
+
+// ==========================================
+// FILTRO
+// ==========================================
+
+const veiculosFiltrados =
+
+Array.isArray(veiculos)
+
+? veiculos.filter((item)=>{
+
+const texto=
+busca.toLowerCase();
 
 return(
 
-<View style={styles.loading}>
+item.placa
+?.toLowerCase()
+.includes(texto)
 
-<ActivityIndicator
-size="large"
-color="#2CC36B"
-/>
+||
 
-<Text style={styles.loadingTexto}>
-Carregando...
-</Text>
+item.modelo
+?.toLowerCase()
+.includes(texto)
 
-</View>
+||
 
-);
-
-}
-
-
-if(
-usuario?.nivel !== 'admin' &&
-usuario?.nivel !== 'supervisor'
-){
-
-return(
-
-<View style={styles.bloqueado}>
-
-<Text style={styles.bloqueadoTexto}>
-Acesso negado
-</Text>
-
-</View>
+item.categoria
+?.toLowerCase()
+.includes(texto)
 
 );
 
-}
+})
 
-
-// ==========================================
-// TOTALIZADORES
-// ==========================================
-
-const totalOnline =
-veiculos.filter(
-v=>v.status==='online'
-).length;
-
-const totalOffline =
-veiculos.filter(
-v=>v.status!=='online'
-).length;
-
-const totalVeiculos =
-veiculos.length;
+: [];
 
 
 // ==========================================
@@ -503,10 +540,10 @@ return(
 
 <ActivityIndicator
 size="large"
-color="#2CC36B"
+color="#021B49"
 />
 
-<Text style={styles.loadingTexto}>
+<Text style={styles.loadingText}>
 Carregando veículos...
 </Text>
 
@@ -522,8 +559,6 @@ Carregando veículos...
 // ==========================================
 
 return(
-
-<>
 
 <ScrollView
 
@@ -553,104 +588,23 @@ onRefresh={atualizar}
 
 
 <Text style={styles.titulo}>
-🚛 Veículos
+🚘 Veículos
 </Text>
 
 <Text style={styles.sub}>
-Gestão inteligente da frota
+Gestão da frota
 </Text>
 
-
-{/* ========================================== */}
-{/* TOTALIZADORES */}
-{/* ========================================== */}
-
-<View style={styles.cardsRow}>
-
-
-<View style={[
-styles.cardInfo,
-{
-backgroundColor:'#021B49'
-}
-]}>
-<Text style={styles.cardNumero}>
-{totalVeiculos}
-</Text>
-<Text style={styles.cardTexto}>
-Frota
-</Text>
-</View>
-
-
-<View style={[
-styles.cardInfo,
-{
-backgroundColor:'#2CC36B'
-}
-]}>
-<Text style={styles.cardNumero}>
-{totalOnline}
-</Text>
-<Text style={styles.cardTexto}>
-Online
-</Text>
-</View>
-
-
-<View style={[
-styles.cardInfo,
-{
-backgroundColor:'#E53935'
-}
-]}>
-<Text style={styles.cardNumero}>
-{totalOffline}
-</Text>
-<Text style={styles.cardTexto}>
-Offline
-</Text>
-</View>
-
-</View>
-
-
-{/* ========================================== */}
-{/* BOTÃO CADASTRAR */}
-{/* ========================================== */}
-
-<TouchableOpacity
-
-style={styles.botaoCadastrar}
-
-onPress={()=>
-navigation.navigate(
-'CadastrarVeiculo'
-)
-}
-
->
-
-<Text style={styles.botaoTexto}>
-+ Cadastrar Veículo
-</Text>
-
-</TouchableOpacity>
-
-
-{/* ========================================== */}
-{/* BUSCA */}
-{/* ========================================== */}
 
 <TextInput
 
-style={styles.inputBusca}
+style={styles.input}
 
-placeholder="Buscar veículo"
+placeholder="Placa"
 
 placeholderTextColor="#777"
 
-value={busca}
+value={placa}
 
 onChangeText={(texto)=>{
 
@@ -670,98 +624,174 @@ valor.slice(3,7);
 
 }
 
-setBusca(valor);
+setPlaca(valor);
 
 }}
 
 />
 
 
-{/* ========================================== */}
-{/* FILTROS */}
-{/* ========================================== */}
+<TextInput
 
-<ScrollView
-horizontal
-showsHorizontalScrollIndicator={false}
-style={styles.filtrosRow}
->
+style={styles.input}
 
-{[
-'todos',
-'online',
-'offline'
-].map((item)=>(
+placeholder="Modelo"
+
+placeholderTextColor="#777"
+
+value={modelo}
+
+onChangeText={setModelo}
+
+/>
+
+
+<TextInput
+
+style={styles.input}
+
+placeholder="Categoria"
+
+placeholderTextColor="#777"
+
+value={categoria}
+
+onChangeText={setCategoria}
+
+/>
+
+
+<TextInput
+
+style={styles.input}
+
+placeholder="Tipo Operacional"
+
+placeholderTextColor="#777"
+
+value={tipoOperacional}
+
+onChangeText={setTipoOperacional}
+
+/>
+
+
+<TextInput
+
+style={styles.input}
+
+placeholder="ID Traccar"
+
+placeholderTextColor="#777"
+
+value={traccarId}
+
+onChangeText={setTraccarId}
+
+/>
+
 
 <TouchableOpacity
 
-key={item}
+style={styles.salvarBtn}
 
-style={[
-
-styles.filtroBtn,
-
-filtroStatus===item &&
-styles.filtroAtivo
-
-]}
-
-onPress={()=>
-setFiltroStatus(item)
-}
+onPress={salvarVeiculo}
 
 >
 
-<Text style={[
+<Text style={styles.salvarTexto}>
 
-styles.filtroTexto,
-
-filtroStatus===item &&
-styles.filtroTextoAtivo
-
-]}>
-
-{item}
+{editando
+? 'Atualizar Veículo'
+: 'Salvar Veículo'}
 
 </Text>
 
 </TouchableOpacity>
 
-))}
 
-</ScrollView>
-
-
-{/* ========================================== */}
-{/* BOTÃO SYNC */}
-{/* ========================================== */}
+{editando &&(
 
 <TouchableOpacity
-style={styles.botaoSync}
-onPress={sincronizarTraccar}
-disabled={sincronizando}
+
+style={styles.cancelarBtn}
+
+onPress={limparFormulario}
+
 >
 
-<Text style={styles.botaoTexto}>
+<Text style={styles.cancelarTexto}>
+Cancelar edição
+</Text>
+
+</TouchableOpacity>
+
+)}
+
+
+<TouchableOpacity
+
+style={styles.syncBtn}
+
+onPress={sincronizarTraccar}
+
+disabled={sincronizando}
+
+>
+
+<Text style={styles.syncTexto}>
 
 {sincronizando
 ? 'Sincronizando...'
-: 'Sincronizar Traccar'}
+: '🔄 Sincronizar Traccar'}
 
 </Text>
 
 </TouchableOpacity>
 
 
-{/* ========================================== */}
-{/* LISTA */}
-{/* ========================================== */}
+<TextInput
 
-{veiculosFiltrados.map((item)=>(
+style={styles.inputBusca}
 
-<View
+placeholder="Buscar veículo"
+
+placeholderTextColor="#777"
+
+value={busca}
+
+onChangeText={setBusca}
+
+/>
+
+
+{veiculosFiltrados?.map((item)=>(
+
+<TouchableOpacity
+
 key={item.id}
+
 style={styles.card}
+
+activeOpacity={0.92}
+
+onPress={()=>
+
+navigation.navigate(
+
+'Mapa',
+
+{
+
+veiculoId:item.traccarId,
+placa:item.placa
+
+}
+
+)
+
+}
+
 >
 
 <View style={styles.topo}>
@@ -797,35 +827,59 @@ item.status === 'online'
 
 
 <Text style={styles.info}>
-Modelo:
-{' '}
-{item.modelo || '-'}
+Modelo: {item.modelo || '-'}
 </Text>
 
-
 <Text style={styles.info}>
-Categoria:
-{' '}
-{item.categoria || '-'}
+Categoria: {item.categoria || '-'}
 </Text>
 
 
 {!!item.tipoOperacional &&(
 
 <Text style={styles.info}>
-Operação:
-{' '}
-{item.tipoOperacional}
+Operação: {item.tipoOperacional}
 </Text>
 
 )}
 
 
 <Text style={styles.info}>
-ID Traccar:
-{' '}
-{item.traccarId || '-'}
+ID Traccar: {item.traccarId || '-'}
 </Text>
+
+
+<View style={styles.acoesRow}>
+
+
+<TouchableOpacity
+
+style={styles.mapaBtn}
+
+onPress={()=>
+
+navigation.navigate(
+
+'Mapa',
+
+{
+
+veiculoId:item.traccarId,
+placa:item.placa
+
+}
+
+)
+
+}
+
+>
+
+<Text style={styles.mapaTexto}>
+🗺️ Ver mapa
+</Text>
+
+</TouchableOpacity>
 
 
 <TouchableOpacity
@@ -836,12 +890,24 @@ onPress={()=>{
 
 setEditando(item);
 
+setPlaca(
+item.placa || ''
+);
+
+setModelo(
+item.modelo || ''
+);
+
 setCategoria(
 item.categoria || ''
 );
 
 setTipoOperacional(
 item.tipoOperacional || ''
+);
+
+setTraccarId(
+String(item.traccarId || '')
 );
 
 }}
@@ -854,29 +920,36 @@ Editar
 
 </TouchableOpacity>
 
+
+<TouchableOpacity
+
+style={styles.excluirBtn}
+
+onPress={()=>
+confirmarExcluir(item)
+}
+
+>
+
+<Text style={styles.excluirTexto}>
+Excluir
+</Text>
+
+</TouchableOpacity>
+
 </View>
+
+</TouchableOpacity>
 
 ))}
 
-
-{/* ========================================== */}
-{/* VAZIO */}
-{/* ========================================== */}
 
 {veiculosFiltrados.length===0 &&(
 
 <View style={styles.vazio}>
 
-<Text style={styles.vazioEmoji}>
-🚛
-</Text>
-
-<Text style={styles.vazioTitulo}>
-Nenhum veículo encontrado
-</Text>
-
 <Text style={styles.vazioTexto}>
-Tente alterar os filtros ou sincronizar com o Traccar.
+Nenhum veículo encontrado
 </Text>
 
 </View>
@@ -886,81 +959,6 @@ Tente alterar os filtros ou sincronizar com o Traccar.
 </View>
 
 </ScrollView>
-
-
-{/* ========================================== */}
-{/* MODAL */}
-{/* ========================================== */}
-
-<Modal
-visible={!!editando}
-transparent
-animationType="slide"
->
-
-<View style={styles.modalBg}>
-
-<View style={styles.modal}>
-
-<Text style={styles.modalTitulo}>
-Editar Veículo
-</Text>
-
-
-<Text style={styles.label}>
-Categoria
-</Text>
-
-<TextInput
-style={styles.input}
-value={categoria}
-onChangeText={setCategoria}
-placeholder="car/truck/bus"
-/>
-
-
-<Text style={styles.label}>
-Tipo Operacional
-</Text>
-
-<TextInput
-style={styles.input}
-value={tipoOperacional}
-onChangeText={setTipoOperacional}
-placeholder="granel/munck"
-/>
-
-
-<TouchableOpacity
-style={styles.salvarBtn}
-onPress={salvarEdicao}
->
-
-<Text style={styles.salvarTexto}>
-Salvar
-</Text>
-
-</TouchableOpacity>
-
-
-<TouchableOpacity
-style={styles.cancelarBtn}
-onPress={()=>setEditando(null)}
->
-
-<Text style={styles.cancelarTexto}>
-Cancelar
-</Text>
-
-</TouchableOpacity>
-
-</View>
-
-</View>
-
-</Modal>
-
-</>
 
 )
 
@@ -976,10 +974,7 @@ backgroundColor:'#F3F5F8'
 
 content:{
 padding:20,
-paddingTop:50,
-width:'100%',
-maxWidth:700,
-alignSelf:'center'
+paddingTop:50
 },
 
 loading:{
@@ -989,23 +984,10 @@ alignItems:'center',
 backgroundColor:'#F3F5F8'
 },
 
-loadingTexto:{
+loadingText:{
 marginTop:15,
 fontSize:16,
 color:'#555'
-},
-
-bloqueado:{
-flex:1,
-justifyContent:'center',
-alignItems:'center',
-backgroundColor:'#F3F5F8'
-},
-
-bloqueadoTexto:{
-fontSize:24,
-fontWeight:'bold',
-color:'#E53935'
 },
 
 titulo:{
@@ -1017,238 +999,38 @@ color:'#111'
 sub:{
 fontSize:16,
 color:'#666',
-marginTop:6,
-marginBottom:20
+marginTop:5,
+marginBottom:25
 },
 
-cardsRow:{
-flexDirection:'row',
-justifyContent:'space-between',
-marginBottom:20,
-gap:10
-},
-
-cardInfo:{
-flex:1,
-paddingVertical:16,
-paddingHorizontal:10,
-borderRadius:22,
-alignItems:'center'
-},
-
-cardNumero:{
-fontSize:30,
-fontWeight:'bold',
-color:'#fff'
-},
-
-cardTexto:{
-color:'#fff',
-fontWeight:'bold',
-marginTop:6,
-fontSize:13
-},
-
-botaoCadastrar:{
-backgroundColor:'#2CC36B',
-height:58,
-borderRadius:18,
-justifyContent:'center',
-alignItems:'center',
-marginBottom:18
-},
-
-botaoSync:{
-backgroundColor:'#021B49',
-height:58,
-borderRadius:18,
-justifyContent:'center',
-alignItems:'center',
-marginBottom:20
-},
-
-botaoTexto:{
-color:'#FFF',
-fontSize:18,
-fontWeight:'bold'
-},
-
-inputBusca:{
+input:{
 backgroundColor:'#fff',
 height:58,
-borderRadius:18,
+borderRadius:16,
 paddingHorizontal:18,
 fontSize:16,
 marginBottom:15,
 color:'#111'
 },
 
-filtrosRow:{
-marginBottom:18
-},
-
-filtroBtn:{
+inputBusca:{
 backgroundColor:'#fff',
-paddingHorizontal:18,
-paddingVertical:12,
+height:58,
 borderRadius:16,
-marginRight:10
-},
-
-filtroAtivo:{
-backgroundColor:'#021B49'
-},
-
-filtroTexto:{
-fontWeight:'bold',
-color:'#555',
-textTransform:'capitalize',
-fontSize:15
-},
-
-filtroTextoAtivo:{
-color:'#fff'
-},
-
-card:{
-backgroundColor:'#FFF',
-padding:22,
-borderRadius:28,
-marginBottom:18,
-
-shadowColor:'#000',
-
-shadowOffset:{
-width:0,
-height:4
-},
-
-shadowOpacity:0.08,
-
-shadowRadius:8,
-
-elevation:3
-
-},
-
-topo:{
-flexDirection:'row',
-justifyContent:'space-between',
-alignItems:'center',
-marginBottom:12
-},
-
-nome:{
-fontSize:24,
-fontWeight:'bold',
-color:'#111',
-flex:1
-},
-
-status:{
-paddingHorizontal:14,
-paddingVertical:7,
-borderRadius:12
-},
-
-statusTexto:{
-color:'#FFF',
-fontWeight:'bold',
-fontSize:12,
-textTransform:'uppercase'
-},
-
-info:{
-fontSize:15,
-color:'#444',
-marginTop:6
-},
-
-editarBtn:{
-backgroundColor:'#021B49',
 paddingHorizontal:18,
-paddingVertical:12,
-borderRadius:12,
-marginTop:18,
-alignSelf:'flex-start'
-},
-
-editarTexto:{
-color:'#fff',
-fontWeight:'bold'
-},
-
-vazio:{
-backgroundColor:'#FFF',
-padding:40,
-borderRadius:28,
-alignItems:'center',
-marginTop:20
-},
-
-vazioEmoji:{
-fontSize:52,
-marginBottom:10
-},
-
-vazioTitulo:{
-fontSize:22,
-fontWeight:'bold',
-color:'#111',
-marginBottom:10
-},
-
-vazioTexto:{
-fontSize:15,
-color:'#777',
-textAlign:'center',
-lineHeight:22
-},
-
-modalBg:{
-flex:1,
-backgroundColor:'rgba(0,0,0,0.5)',
-justifyContent:'center',
-padding:20
-},
-
-modal:{
-backgroundColor:'#fff',
-borderRadius:28,
-padding:22
-},
-
-modalTitulo:{
-fontSize:24,
-fontWeight:'bold',
+fontSize:16,
+marginTop:20,
 marginBottom:20,
 color:'#111'
 },
 
-label:{
-fontWeight:'bold',
-marginBottom:8,
-marginTop:10,
-color:'#111'
-},
-
-input:{
-backgroundColor:'#F3F5F8',
-height:58,
-borderRadius:16,
-paddingHorizontal:16,
-fontSize:16,
-marginBottom:10,
-color:'#111'
-},
-
 salvarBtn:{
-backgroundColor:'#2CC36B',
+backgroundColor:'#021B49',
 height:58,
 borderRadius:16,
 justifyContent:'center',
 alignItems:'center',
-marginTop:15
+marginTop:5
 },
 
 salvarTexto:{
@@ -1258,14 +1040,130 @@ fontSize:18
 },
 
 cancelarBtn:{
-marginTop:18,
-alignItems:'center'
+backgroundColor:'#E53935',
+height:52,
+borderRadius:16,
+justifyContent:'center',
+alignItems:'center',
+marginTop:12
 },
 
 cancelarTexto:{
-color:'#E53935',
+color:'#fff',
 fontWeight:'bold',
 fontSize:16
+},
+
+syncBtn:{
+backgroundColor:'#021B49',
+height:58,
+borderRadius:16,
+justifyContent:'center',
+alignItems:'center',
+marginTop:15,
+marginBottom:10
+},
+
+syncTexto:{
+color:'#fff',
+fontWeight:'bold',
+fontSize:18
+},
+
+card:{
+backgroundColor:'#fff',
+padding:22,
+borderRadius:24,
+marginBottom:18
+},
+
+topo:{
+flexDirection:'row',
+justifyContent:'space-between',
+alignItems:'center',
+marginBottom:15
+},
+
+nome:{
+fontSize:24,
+fontWeight:'bold',
+color:'#111'
+},
+
+status:{
+paddingHorizontal:14,
+paddingVertical:8,
+borderRadius:12
+},
+
+statusTexto:{
+color:'#fff',
+fontWeight:'bold',
+fontSize:13,
+textTransform:'uppercase'
+},
+
+info:{
+fontSize:16,
+color:'#444',
+marginBottom:8
+},
+
+acoesRow:{
+flexDirection:'row',
+justifyContent:'space-between',
+alignItems:'center',
+marginTop:18,
+gap:8
+},
+
+mapaBtn:{
+flex:1,
+backgroundColor:'#1565F9',
+paddingVertical:12,
+borderRadius:12,
+alignItems:'center'
+},
+
+mapaTexto:{
+color:'#fff',
+fontWeight:'bold'
+},
+
+editarBtn:{
+flex:1,
+backgroundColor:'#2CC36B',
+paddingVertical:12,
+borderRadius:12,
+alignItems:'center'
+},
+
+editarTexto:{
+color:'#fff',
+fontWeight:'bold'
+},
+
+excluirBtn:{
+flex:1,
+backgroundColor:'#E53935',
+paddingVertical:12,
+borderRadius:12,
+alignItems:'center'
+},
+
+excluirTexto:{
+color:'#fff',
+fontWeight:'bold'
+},
+
+vazio:{
+padding:40,
+alignItems:'center'
+},
+
+vazioTexto:{
+fontSize:18,
+color:'#777'
 }
 
 });

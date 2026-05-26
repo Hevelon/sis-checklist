@@ -55,6 +55,8 @@ from '../screens/UsuariosScreen';
 import VeiculosScreen
 from '../screens/VeiculosScreen';
 
+import MapaScreen
+from '../screens/MapaScreen';
 
 const Stack =
 createNativeStackNavigator();
@@ -197,6 +199,11 @@ component={CadastrarVeiculoScreen}
 <Stack.Screen
 name="Veiculos"
 component={VeiculosScreen}
+/>
+
+<Stack.Screen
+name="Mapa"
+component={MapaScreen}
 />
 
 </Stack.Navigator>
