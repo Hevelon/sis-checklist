@@ -32,7 +32,8 @@
           "photosPermission": "Permita que o SIS Checklist acesse fotos para anexar imagens aos registros.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
