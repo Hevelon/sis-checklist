@@ -10,6 +10,10 @@ import {
   Ionicons
 } from '@expo/vector-icons';
 
+import {
+  useSafeAreaInsets
+} from 'react-native-safe-area-context';
+
 import DashboardScreen
 from '../screens/DashboardScreen';
 
@@ -41,6 +45,9 @@ const TAB_LABELS = {
 };
 
 export default function BottomTabs() {
+
+  const insets =
+    useSafeAreaInsets();
 
   const {
     usuario
@@ -98,8 +105,8 @@ export default function BottomTabs() {
         tabBarInactiveTintColor: '#999',
 
         tabBarStyle: {
-          height: 70,
-          paddingBottom: 8,
+          height: 70 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 5
         },
 
