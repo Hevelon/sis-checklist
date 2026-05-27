@@ -59,7 +59,11 @@ data.results &&
 data.results.length > 0
 ){
 
-return data.results[0].formatted_address;
+return data.results[0]
+.formatted_address
+.split(',')
+.slice(0,3)
+.join(',');
 
 }
 
@@ -486,10 +490,6 @@ return null;
 }
 
 
-// ==========================================
-// STATUS ONLINE
-// ==========================================
-
 const online =
 
 item.status === 'online' ||
@@ -519,24 +519,9 @@ item.position.longitude
 
 }}
 
-onPress={async()=>{
+onPress={()=>{
 
-const endereco =
-
-await buscarEndereco(
-
-item.position.latitude,
-item.position.longitude
-
-);
-
-setVeiculoSelecionado({
-
-...item,
-
-endereco
-
-});
+setVeiculoSelecionado(item);
 
 }}
 
@@ -784,15 +769,61 @@ Híbrido
 </Text>
 
 
-<Text style={styles.info}>
+<View style={[
+styles.infoRow,
+{
+paddingRight:10
+}
+]}>
 
+<Text style={styles.label}>
 📍 Endereço:
-{' '}
+</Text>
 
-{veiculoSelecionado.endereco ||
-'Buscando endereço...'}
+{veiculoSelecionado.endereco ? (
+
+<Text style={styles.infoText}>
+
+{veiculoSelecionado.endereco}
 
 </Text>
+
+) : (
+
+<TouchableOpacity
+
+onPress={async()=>{
+
+const endereco =
+
+await buscarEndereco(
+
+veiculoSelecionado.position.latitude,
+veiculoSelecionado.position.longitude
+
+);
+
+setVeiculoSelecionado({
+
+...veiculoSelecionado,
+
+endereco
+
+});
+
+}}
+
+>
+
+<Text style={styles.linkEndereco}>
+Mostrar endereço
+</Text>
+
+</TouchableOpacity>
+
+)}
+
+</View>
 
 
 <Text style={styles.info}>
@@ -1024,6 +1055,29 @@ marginBottom:12
 info:{
 fontSize:16,
 marginBottom:8
+},
+
+infoRow:{
+marginBottom:10
+},
+
+label:{
+fontSize:16,
+fontWeight:'600',
+marginBottom:4
+},
+
+infoText:{
+fontSize:15,
+color:'#333',
+lineHeight:22,
+flexShrink:1
+},
+
+linkEndereco:{
+fontSize:16,
+color:'#22C55E',
+fontWeight:'bold'
 },
 
 detailsBtn:{
