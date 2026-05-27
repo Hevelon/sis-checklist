@@ -1,7 +1,8 @@
 import React,{
 useEffect,
 useRef,
-useState
+useState,
+useMemo
 } from 'react';
 
 import {
@@ -15,12 +16,12 @@ Alert
 } from 'react-native';
 
 import MapView,{
-Marker,
-Polyline
+Marker
 } from 'react-native-maps';
 
 import {
 Ionicons,
+MaterialIcons,
 FontAwesome5
 } from '@expo/vector-icons';
 
@@ -59,16 +60,24 @@ veiculoSelecionado,
 setVeiculoSelecionado
 ]=useState(null);
 
+const[
+mapType,
+setMapType
+]=useState('standard');
+
+const[
+mostrarLayers,
+setMostrarLayers
+]=useState(false);
+
 
 // ==========================================
-// LOAD
+// LOAD MAPA
 // ==========================================
 
 async function carregarMapa(){
 
 try{
-
-setLoading(true);
 
 const response =
 await buscarVeiculosTraccar();
@@ -79,13 +88,101 @@ Array.isArray(response?.data)
 ? response.data
 : [];
 
+
+// ==========================================
+// PRIMEIRA CARGA
+// ==========================================
+
+if(veiculos.length===0){
+
 setVeiculos(lista);
+
+setLoading(false);
+
+return;
+
+}
+
+
+// ==========================================
+// ATUALIZA SOMENTE POSIÇÕES
+// ==========================================
+
+setVeiculos((anteriores)=>{
+
+const atualizados =
+
+anteriores.map((veiculoAnterior)=>{
+
+const novo = lista.find(
+
+(v)=>
+
+String(v.id) ===
+String(veiculoAnterior.id)
+
+);
+
+if(!novo){
+
+return veiculoAnterior;
+
+}
+
+return{
+
+...veiculoAnterior,
+
+position:novo.position,
+
+status:novo.status,
+
+lastUpdate:novo.lastUpdate,
+
+driver:novo.driver
+
+};
+
+});
+
+
+// ==========================================
+// NOVOS VEÍCULOS
+// ==========================================
+
+lista.forEach((novo)=>{
+
+const existe =
+
+atualizados.find(
+
+(v)=>
+
+String(v.id) ===
+String(novo.id)
+
+);
+
+if(!existe){
+
+atualizados.push(novo);
+
+}
+
+});
+
+return atualizados;
+
+});
 
 }catch(e){
 
 console.log(e);
 
-}finally{
+Alert.alert(
+'Erro',
+'Erro ao carregar mapa'
+);
 
 setLoading(false);
 
@@ -108,7 +205,7 @@ setInterval(()=>{
 
 carregarMapa();
 
-},30000);
+},10000);
 
 return()=>clearInterval(interval);
 
@@ -123,7 +220,7 @@ useEffect(()=>{
 
 if(
 veiculoId &&
-veiculos.length > 0
+veiculos.length>0
 ){
 
 const encontrado =
@@ -132,13 +229,17 @@ veiculos.find(
 
 (v)=>
 
-String(v.id) ===
+String(v.id)
+===
 String(veiculoId)
 
 );
 
 if(
-encontrado?.position
+
+encontrado?.position?.latitude &&
+encontrado?.position?.longitude
+
 ){
 
 setVeiculoSelecionado(
@@ -150,19 +251,20 @@ setTimeout(()=>{
 mapRef.current
 ?.animateToRegion({
 
-latitude:
-encontrado.position.latitude,
+latitude:Number(
+encontrado.position.latitude
+),
 
-longitude:
-encontrado.position.longitude,
+longitude:Number(
+encontrado.position.longitude
+),
 
-latitudeDelta:0.02,
-
-longitudeDelta:0.02
+latitudeDelta:0.005,
+longitudeDelta:0.005
 
 });
 
-},1000);
+},700);
 
 }
 
@@ -188,22 +290,17 @@ return;
 
 Alert.alert(
 
-veiculoSelecionado.name,
+veiculoSelecionado.name || 'Veículo',
 
 `Status:
-${veiculoSelecionado.status}
+${veiculoSelecionado.status || '-'}
 
 Velocidade:
 ${Math.round(
-(veiculoSelecionado.position?.speed || 0)
-* 1.852
+(Number(
+veiculoSelecionado.position?.speed
+)||0)*1.852
 )} km/h
-
-Latitude:
-${veiculoSelecionado.position?.latitude}
-
-Longitude:
-${veiculoSelecionado.position?.longitude}
 
 Ignição:
 ${veiculoSelecionado.position?.attributes?.ignition
@@ -215,6 +312,12 @@ ${veiculoSelecionado.position?.attributes?.motion
 ? 'Em movimento'
 : 'Parado'}
 
+Latitude:
+${veiculoSelecionado.position?.latitude || '-'}
+
+Longitude:
+${veiculoSelecionado.position?.longitude || '-'}
+
 Endereço:
 ${veiculoSelecionado.position?.address ||
 'Não disponível'}
@@ -223,6 +326,56 @@ ${veiculoSelecionado.position?.address ||
 );
 
 }
+
+
+// ==========================================
+// PRIMEIRA REGIÃO
+// ==========================================
+
+const primeiroValido =
+
+useMemo(()=>{
+
+return veiculos.find(
+
+(v)=>
+
+v?.position?.latitude &&
+v?.position?.longitude
+
+);
+
+},[veiculos]);
+
+
+const initialRegion =
+
+primeiroValido?.position
+
+? {
+
+latitude:Number(
+primeiroValido.position.latitude
+),
+
+longitude:Number(
+primeiroValido.position.longitude
+),
+
+latitudeDelta:0.008,
+longitudeDelta:0.008
+
+}
+
+: {
+
+latitude:-12.5797,
+longitude:-38.0045,
+
+latitudeDelta:0.008,
+longitudeDelta:0.008
+
+};
 
 
 // ==========================================
@@ -246,51 +399,9 @@ Carregando mapa...
 
 </View>
 
-)
+);
 
 }
-
-
-// ==========================================
-// REGIÃO INICIAL
-// ==========================================
-
-const initialRegion =
-
-veiculos[0]?.position
-
-? {
-
-latitude:
-veiculos[0].position.latitude,
-
-longitude:
-veiculos[0].position.longitude,
-
-latitudeDelta:0.08,
-
-longitudeDelta:0.08
-
-}
-
-: {
-
-latitude:-12.5797,
-
-longitude:-38.0045,
-
-latitudeDelta:0.08,
-
-longitudeDelta:0.08
-
-};
-
-
-// ==========================================
-// ROTA MOCK
-// ==========================================
-
-
 
 
 // ==========================================
@@ -308,6 +419,8 @@ ref={mapRef}
 
 style={styles.map}
 
+mapType={mapType}
+
 initialRegion={initialRegion}
 
 showsUserLocation
@@ -316,51 +429,57 @@ showsTraffic
 
 >
 
+{veiculos.map((item)=>{
 
-{veiculos.map((item,index)=>{
+if(
 
-if(!item.position){
+!item?.position?.latitude ||
+
+!item?.position?.longitude
+
+){
 
 return null;
 
 }
 
+
+// ==========================================
+// STATUS ONLINE
+// ==========================================
+
 const online =
-item.status === 'online';
+
+item.status === 'online' ||
+
+item?.position?.attributes?.motion ||
+
+item?.position?.attributes?.ignition;
+
 
 return(
 
 <Marker
 
-key={index}
+tracksViewChanges={false}
+
+key={item.id}
 
 coordinate={{
 
-latitude:
-item.position.latitude,
+latitude:Number(
+item.position.latitude
+),
 
-longitude:
+longitude:Number(
 item.position.longitude
+)
 
 }}
 
 onPress={()=>{
 
 setVeiculoSelecionado(item);
-
-mapRef.current?.animateToRegion({
-
-latitude:
-item.position.latitude,
-
-longitude:
-item.position.longitude,
-
-latitudeDelta:0.02,
-
-longitudeDelta:0.02
-
-});
 
 }}
 
@@ -373,8 +492,8 @@ styles.marker,
 {
 backgroundColor:
 online
-? '#2CC36B'
-: '#E53935'
+? '#22C55E'
+: '#FF3B30'
 }
 
 ]}>
@@ -389,7 +508,7 @@ color="#fff"
 
 </Marker>
 
-)
+);
 
 })}
 
@@ -397,7 +516,7 @@ color="#fff"
 
 
 {/* ====================================== */}
-{/* TOPO */}
+{/* TOP BAR */}
 {/* ====================================== */}
 
 <View style={styles.topBar}>
@@ -405,7 +524,7 @@ color="#fff"
 
 <TouchableOpacity
 
-style={styles.menuBtn}
+style={styles.topBtn}
 
 onPress={()=>
 navigation.goBack()
@@ -415,16 +534,16 @@ navigation.goBack()
 
 <Ionicons
 name="arrow-back"
-size={26}
+size={24}
 color="#111"
 />
 
 </TouchableOpacity>
 
 
-<View style={styles.filtroBox}>
+<View style={styles.titleBox}>
 
-<Text style={styles.filtroTexto}>
+<Text style={styles.title}>
 Mapa da Frota
 </Text>
 
@@ -434,27 +553,211 @@ Mapa da Frota
 
 
 {/* ====================================== */}
-{/* CARD INFERIOR */}
+{/* FLOAT BUTTONS */}
+{/* ====================================== */}
+
+<View style={styles.floatButtons}>
+
+
+<TouchableOpacity
+
+style={styles.floatBtn}
+
+onPress={()=>
+setMostrarLayers(
+!mostrarLayers
+)
+}
+
+>
+
+<MaterialIcons
+name="layers"
+size={24}
+color="#111"
+/>
+
+</TouchableOpacity>
+
+
+<TouchableOpacity
+
+style={styles.floatBtn}
+
+onPress={()=>{
+
+if(
+veiculoSelecionado?.position
+){
+
+mapRef.current
+?.animateToRegion({
+
+latitude:Number(
+veiculoSelecionado.position.latitude
+),
+
+longitude:Number(
+veiculoSelecionado.position.longitude
+),
+
+latitudeDelta:0.005,
+longitudeDelta:0.005
+
+});
+
+}
+
+}}
+
+>
+
+<Ionicons
+name="locate"
+size={24}
+color="#111"
+/>
+
+</TouchableOpacity>
+
+
+<TouchableOpacity
+
+style={styles.floatBtn}
+
+onPress={carregarMapa}
+
+>
+
+<Ionicons
+name="refresh"
+size={24}
+color="#111"
+/>
+
+</TouchableOpacity>
+
+</View>
+
+
+{/* ====================================== */}
+{/* MAP TYPES */}
+{/* ====================================== */}
+
+{mostrarLayers &&(
+
+<View style={styles.layersBox}>
+
+
+<TouchableOpacity
+
+style={styles.layerItem}
+
+onPress={()=>{
+
+setMapType('standard');
+setMostrarLayers(false);
+
+}}
+
+>
+
+<Text style={styles.layerText}>
+Padrão
+</Text>
+
+</TouchableOpacity>
+
+
+<TouchableOpacity
+
+style={styles.layerItem}
+
+onPress={()=>{
+
+setMapType('satellite');
+setMostrarLayers(false);
+
+}}
+
+>
+
+<Text style={styles.layerText}>
+Satélite
+</Text>
+
+</TouchableOpacity>
+
+
+<TouchableOpacity
+
+style={styles.layerItem}
+
+onPress={()=>{
+
+setMapType('hybrid');
+setMostrarLayers(false);
+
+}}
+
+>
+
+<Text style={styles.layerText}>
+Híbrido
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+)}
+
+
+{/* ====================================== */}
+{/* CARD VEÍCULO */}
 {/* ====================================== */}
 
 {veiculoSelecionado &&(
 
-<View style={styles.bottomCard}>
+<View style={styles.card}>
 
 
-<Text style={styles.veiculoNome}>
+<Text style={styles.nome}>
 🚛 {veiculoSelecionado.name}
 </Text>
 
 
 <Text style={styles.info}>
 
-Velocidade:
+📍 Endereço:
+{' '}
+
+{veiculoSelecionado.position?.address ||
+'Localização indisponível'}
+
+</Text>
+
+
+<Text style={styles.info}>
+
+👨‍✈️ Motorista:
+{' '}
+
+{veiculoSelecionado.driver?.name ||
+'Não identificado'}
+
+</Text>
+
+
+<Text style={styles.info}>
+
+⚡ Velocidade:
 {' '}
 
 {Math.round(
-(veiculoSelecionado.position?.speed || 0)
-* 1.852
+(Number(
+veiculoSelecionado.position?.speed
+)||0)*1.852
 )}
 
  km/h
@@ -464,7 +767,7 @@ Velocidade:
 
 <Text style={styles.info}>
 
-Status:
+🟢 Status:
 {' '}
 
 {veiculoSelecionado.status}
@@ -474,11 +777,12 @@ Status:
 
 <Text style={styles.info}>
 
-Endereço:
+🔑 Ignição:
 {' '}
 
-{veiculoSelecionado.position?.address ||
-'Não disponível'}
+{veiculoSelecionado.position?.attributes?.ignition
+? 'Ligada'
+: 'Desligada'}
 
 </Text>
 
@@ -503,12 +807,12 @@ Ver detalhes
 
 </View>
 
-)
+);
 
 }
 
 
-const styles=StyleSheet.create({
+const styles = StyleSheet.create({
 
 container:{
 flex:1
@@ -527,9 +831,9 @@ backgroundColor:'#F3F5F8'
 },
 
 loadingText:{
-marginTop:15,
-fontSize:16,
-color:'#555'
+marginTop:10,
+fontSize:18,
+fontWeight:'500'
 },
 
 topBar:{
@@ -542,68 +846,92 @@ flexDirection:'row',
 alignItems:'center'
 },
 
-menuBtn:{
-width:55,
-height:55,
-borderRadius:18,
+topBtn:{
+width:52,
+height:52,
+borderRadius:16,
 
 backgroundColor:'#fff',
 
 justifyContent:'center',
 alignItems:'center',
 
-shadowColor:'#000',
-
-shadowOffset:{
-width:0,
-height:4
-},
-
-shadowOpacity:0.1,
-
-shadowRadius:6,
-
 elevation:5
 },
 
-filtroBox:{
+titleBox:{
 flex:1,
+
+height:52,
+
+backgroundColor:'#fff',
 
 marginLeft:12,
 
-height:55,
-
-borderRadius:18,
-
-backgroundColor:'#fff',
+borderRadius:16,
 
 justifyContent:'center',
 
 paddingHorizontal:18,
 
-shadowColor:'#000',
-
-shadowOffset:{
-width:0,
-height:4
+elevation:5
 },
 
-shadowOpacity:0.1,
+title:{
+fontSize:18,
+fontWeight:'bold'
+},
 
-shadowRadius:6,
+floatButtons:{
+position:'absolute',
+right:20,
+top:140
+},
+
+floatBtn:{
+width:52,
+height:52,
+
+borderRadius:16,
+
+backgroundColor:'#fff',
+
+justifyContent:'center',
+alignItems:'center',
+
+marginBottom:12,
 
 elevation:5
 },
 
-filtroTexto:{
-fontSize:18,
-fontWeight:'bold',
-color:'#111'
+layersBox:{
+position:'absolute',
+
+right:82,
+top:140,
+
+backgroundColor:'#fff',
+
+borderRadius:16,
+
+paddingVertical:10,
+
+elevation:5
+},
+
+layerItem:{
+paddingHorizontal:18,
+paddingVertical:14
+},
+
+layerText:{
+fontSize:16
 },
 
 marker:{
 width:48,
 height:48,
+
 borderRadius:24,
 
 justifyContent:'center',
@@ -613,7 +941,7 @@ borderWidth:4,
 borderColor:'#fff'
 },
 
-bottomCard:{
+card:{
 position:'absolute',
 
 left:20,
@@ -626,37 +954,24 @@ borderRadius:24,
 
 padding:20,
 
-shadowColor:'#000',
-
-shadowOffset:{
-width:0,
-height:4
+elevation:5
 },
 
-shadowOpacity:0.1,
-
-shadowRadius:8,
-
-elevation:6
-},
-
-veiculoNome:{
-fontSize:24,
+nome:{
+fontSize:22,
 fontWeight:'bold',
-marginBottom:15,
-color:'#111'
+marginBottom:12
 },
 
 info:{
 fontSize:16,
-marginBottom:10,
-color:'#444'
+marginBottom:8
 },
 
 detailsBtn:{
 backgroundColor:'#1565F9',
 
-height:55,
+height:52,
 
 borderRadius:16,
 
@@ -669,7 +984,7 @@ marginTop:15
 detailsText:{
 color:'#fff',
 fontWeight:'bold',
-fontSize:18
+fontSize:17
 }
 
 });
