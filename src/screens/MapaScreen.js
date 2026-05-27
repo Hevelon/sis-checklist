@@ -34,6 +34,48 @@ width,
 height
 }=Dimensions.get('window');
 
+
+// ==========================================
+// GOOGLE GEOCODER
+// ==========================================
+
+async function buscarEndereco(
+latitude,
+longitude
+){
+
+try{
+
+const response = await fetch(
+
+`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=SUA_API_KEY_GOOGLE`
+
+);
+
+const data = await response.json();
+
+if(
+data.results &&
+data.results.length > 0
+){
+
+return data.results[0].formatted_address;
+
+}
+
+return 'Endereço não encontrado';
+
+}catch(e){
+
+console.log(e);
+
+return 'Erro ao buscar endereço';
+
+}
+
+}
+
+
 export default function MapaScreen({
 route,
 navigation
@@ -319,7 +361,7 @@ Longitude:
 ${veiculoSelecionado.position?.longitude || '-'}
 
 Endereço:
-${veiculoSelecionado.position?.address ||
+${veiculoSelecionado.endereco ||
 'Não disponível'}
 `
 
@@ -477,9 +519,24 @@ item.position.longitude
 
 }}
 
-onPress={()=>{
+onPress={async()=>{
 
-setVeiculoSelecionado(item);
+const endereco =
+
+await buscarEndereco(
+
+item.position.latitude,
+item.position.longitude
+
+);
+
+setVeiculoSelecionado({
+
+...item,
+
+endereco
+
+});
 
 }}
 
@@ -732,8 +789,8 @@ Híbrido
 📍 Endereço:
 {' '}
 
-{veiculoSelecionado.position?.address ||
-'Localização indisponível'}
+{veiculoSelecionado.endereco ||
+'Buscando endereço...'}
 
 </Text>
 
@@ -744,6 +801,7 @@ Híbrido
 {' '}
 
 {veiculoSelecionado.driver?.name ||
+veiculoSelecionado.position?.attributes?.driverUniqueId ||
 'Não identificado'}
 
 </Text>
