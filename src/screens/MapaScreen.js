@@ -1,38 +1,37 @@
 import React,{
-useEffect,
-useRef,
-useState,
-useMemo
+  useEffect,
+  useRef,
+  useState,
+  useMemo
 } from 'react';
 
 import {
-View,
-Text,
-StyleSheet,
-TouchableOpacity,
-ActivityIndicator,
-Dimensions,
-Alert
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Dimensions,
+  Alert
 } from 'react-native';
 
 import MapView,{
-Marker
+  Marker
 } from 'react-native-maps';
 
 import {
-Ionicons,
-MaterialIcons,
-FontAwesome5
+  Ionicons,
+  MaterialIcons
 } from '@expo/vector-icons';
 
 import {
-buscarVeiculosTraccar
+  buscarVeiculosTraccar
 } from '../services/functions';
 
-const{
-width,
-height
-}=Dimensions.get('window');
+const {
+  width,
+  height
+} = Dimensions.get('window');
 
 
 // ==========================================
@@ -40,305 +39,295 @@ height
 // ==========================================
 
 async function buscarEndereco(
-latitude,
-longitude
+  latitude,
+  longitude
 ){
 
-try{
+  try{
 
-const response = await fetch(
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=SUA_API_KEY_GOOGLE`
+    );
 
-`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=SUA_API_KEY_GOOGLE`
+    const data = await response.json();
 
-);
+    if(
+      data.results &&
+      data.results.length > 0
+    ){
 
-const data = await response.json();
+      return data.results[0]
+        .formatted_address
+        .split(',')
+        .slice(0,3)
+        .join(',');
 
-if(
-data.results &&
-data.results.length > 0
-){
+    }
 
-return data.results[0]
-.formatted_address
-.split(',')
-.slice(0,3)
-.join(',');
+    return 'Endereço não encontrado';
 
-}
+  }catch(e){
 
-return 'Endereço não encontrado';
+    console.log(e);
 
-}catch(e){
+    return 'Erro ao buscar endereço';
 
-console.log(e);
-
-return 'Erro ao buscar endereço';
-
-}
+  }
 
 }
-
 
 export default function MapaScreen({
-route,
-navigation
+  route,
+  navigation
 }){
 
-const veiculoId =
-route?.params?.veiculoId;
+  const veiculoId =
+    route?.params?.veiculoId;
 
-const mapRef =
-useRef(null);
+  const mapRef =
+    useRef(null);
 
-const[
-loading,
-setLoading
-]=useState(true);
+  const [
+    loading,
+    setLoading
+  ] = useState(true);
 
-const[
-veiculos,
-setVeiculos
-]=useState([]);
+  const [
+    veiculos,
+    setVeiculos
+  ] = useState([]);
 
-const[
-veiculoSelecionado,
-setVeiculoSelecionado
-]=useState(null);
+  const [
+    veiculoSelecionado,
+    setVeiculoSelecionado
+  ] = useState(null);
 
-const[
-mapType,
-setMapType
-]=useState('standard');
+  const [
+    mapType,
+    setMapType
+  ] = useState('standard');
 
-const[
-mostrarLayers,
-setMostrarLayers
-]=useState(false);
+  const [
+    mostrarLayers,
+    setMostrarLayers
+  ] = useState(false);
 
 
-// ==========================================
-// LOAD MAPA
-// ==========================================
+  // ==========================================
+  // LOAD MAPA
+  // ==========================================
 
-async function carregarMapa(){
+  async function carregarMapa(){
 
-try{
+    try{
 
-const response =
-await buscarVeiculosTraccar();
+      const response =
+        await buscarVeiculosTraccar();
 
-const lista =
+      const lista =
 
-Array.isArray(response?.data)
-? response.data
-: [];
+        Array.isArray(response?.data)
+          ? response.data
+          : [];
 
+      // ==========================================
+      // PRIMEIRA CARGA
+      // ==========================================
 
-// ==========================================
-// PRIMEIRA CARGA
-// ==========================================
+      if(veiculos.length === 0){
 
-if(veiculos.length===0){
+        setVeiculos(lista);
 
-setVeiculos(lista);
+        setLoading(false);
 
-setLoading(false);
+        return;
 
-return;
+      }
 
-}
+      // ==========================================
+      // ATUALIZA SOMENTE POSIÇÕES
+      // ==========================================
 
+      setVeiculos((anteriores)=>{
 
-// ==========================================
-// ATUALIZA SOMENTE POSIÇÕES
-// ==========================================
+        const atualizados =
 
-setVeiculos((anteriores)=>{
+          anteriores.map((veiculoAnterior)=>{
 
-const atualizados =
+            const novo = lista.find(
 
-anteriores.map((veiculoAnterior)=>{
+              (v)=>
+                String(v.id) ===
+                String(veiculoAnterior.id)
 
-const novo = lista.find(
+            );
 
-(v)=>
+            if(!novo){
 
-String(v.id) ===
-String(veiculoAnterior.id)
+              return veiculoAnterior;
 
-);
+            }
 
-if(!novo){
+            return{
+              ...veiculoAnterior,
 
-return veiculoAnterior;
+              position:novo.position,
 
-}
+              status:novo.status,
 
-return{
+              lastUpdate:novo.lastUpdate,
 
-...veiculoAnterior,
+              driver:novo.driver
+            };
 
-position:novo.position,
+          });
 
-status:novo.status,
+        // ==========================================
+        // NOVOS VEÍCULOS
+        // ==========================================
 
-lastUpdate:novo.lastUpdate,
+        lista.forEach((novo)=>{
 
-driver:novo.driver
+          const existe =
 
-};
+            atualizados.find(
 
-});
+              (v)=>
+                String(v.id) ===
+                String(novo.id)
 
+            );
 
-// ==========================================
-// NOVOS VEÍCULOS
-// ==========================================
+          if(!existe){
 
-lista.forEach((novo)=>{
+            atualizados.push(novo);
 
-const existe =
+          }
 
-atualizados.find(
+        });
 
-(v)=>
+        return atualizados;
 
-String(v.id) ===
-String(novo.id)
+      });
 
-);
+    }catch(e){
 
-if(!existe){
+      console.log(e);
 
-atualizados.push(novo);
+      Alert.alert(
+        'Erro',
+        'Erro ao carregar mapa'
+      );
 
-}
+      setLoading(false);
 
-});
+    }
 
-return atualizados;
+  }
 
-});
 
-}catch(e){
+  // ==========================================
+  // AUTO REFRESH
+  // ==========================================
 
-console.log(e);
+  useEffect(()=>{
 
-Alert.alert(
-'Erro',
-'Erro ao carregar mapa'
-);
+    carregarMapa();
 
-setLoading(false);
+    const interval =
 
-}
+      setInterval(()=>{
 
-}
+        carregarMapa();
 
+      },10000);
 
-// ==========================================
-// AUTO REFRESH
-// ==========================================
+    return()=>clearInterval(interval);
 
-useEffect(()=>{
+  },[]);
 
-carregarMapa();
 
-const interval =
+  // ==========================================
+  // CENTRALIZA VEÍCULO
+  // ==========================================
 
-setInterval(()=>{
+  useEffect(()=>{
 
-carregarMapa();
+    if(
+      veiculoId &&
+      veiculos.length > 0
+    ){
 
-},10000);
+      const encontrado =
 
-return()=>clearInterval(interval);
+        veiculos.find(
 
-},[]);
+          (v)=>
 
+            String(v.id)
+            ===
+            String(veiculoId)
 
-// ==========================================
-// CENTRALIZA VEÍCULO
-// ==========================================
+        );
 
-useEffect(()=>{
+      if(
 
-if(
-veiculoId &&
-veiculos.length>0
-){
+        encontrado?.position?.latitude &&
+        encontrado?.position?.longitude
 
-const encontrado =
+      ){
 
-veiculos.find(
+        setVeiculoSelecionado(
+          encontrado
+        );
 
-(v)=>
+        setTimeout(()=>{
 
-String(v.id)
-===
-String(veiculoId)
+          mapRef.current
+            ?.animateToRegion({
 
-);
+              latitude:Number(
+                encontrado.position.latitude
+              ),
 
-if(
+              longitude:Number(
+                encontrado.position.longitude
+              ),
 
-encontrado?.position?.latitude &&
-encontrado?.position?.longitude
+              latitudeDelta:0.005,
+              longitudeDelta:0.005
 
-){
+            });
 
-setVeiculoSelecionado(
-encontrado
-);
+        },700);
 
-setTimeout(()=>{
+      }
 
-mapRef.current
-?.animateToRegion({
+    }
 
-latitude:Number(
-encontrado.position.latitude
-),
+  },[
+    veiculoId,
+    veiculos
+  ]);
 
-longitude:Number(
-encontrado.position.longitude
-),
 
-latitudeDelta:0.005,
-longitudeDelta:0.005
+  // ==========================================
+  // DETALHES
+  // ==========================================
 
-});
+  function abrirDetalhes(){
 
-},700);
+    if(!veiculoSelecionado){
 
-}
+      return;
 
-}
+    }
 
-},[
-veiculoId,
-veiculos
-]);
+    Alert.alert(
 
+      veiculoSelecionado.name || 'Veículo',
 
-// ==========================================
-// DETALHES
-// ==========================================
-
-function abrirDetalhes(){
-
-if(!veiculoSelecionado){
-
-return;
-
-}
-
-Alert.alert(
-
-veiculoSelecionado.name || 'Veículo',
-
-`Status:
+      `Status:
 ${veiculoSelecionado.status || '-'}
 
 Velocidade:
@@ -369,734 +358,730 @@ ${veiculoSelecionado.endereco ||
 'Não disponível'}
 `
 
-);
+    );
 
-}
+  }
 
 
-// ==========================================
-// PRIMEIRA REGIÃO
-// ==========================================
+  // ==========================================
+  // PRIMEIRA REGIÃO
+  // ==========================================
 
-const primeiroValido =
+  const primeiroValido =
 
-useMemo(()=>{
+    useMemo(()=>{
 
-return veiculos.find(
+      return veiculos.find(
 
-(v)=>
+        (v)=>
 
-v?.position?.latitude &&
-v?.position?.longitude
+          v?.position?.latitude &&
+          v?.position?.longitude
 
-);
+      );
 
-},[veiculos]);
+    },[veiculos]);
 
 
-const initialRegion =
+  const initialRegion =
 
-primeiroValido?.position
+    primeiroValido?.position
 
-? {
+      ? {
 
-latitude:Number(
-primeiroValido.position.latitude
-),
+        latitude:Number(
+          primeiroValido.position.latitude
+        ),
 
-longitude:Number(
-primeiroValido.position.longitude
-),
+        longitude:Number(
+          primeiroValido.position.longitude
+        ),
 
-latitudeDelta:0.008,
-longitudeDelta:0.008
+        latitudeDelta:0.008,
+        longitudeDelta:0.008
 
-}
+      }
 
-: {
+      : {
 
-latitude:-12.5797,
-longitude:-38.0045,
+        latitude:-12.5797,
+        longitude:-38.0045,
 
-latitudeDelta:0.008,
-longitudeDelta:0.008
+        latitudeDelta:0.008,
+        longitudeDelta:0.008
 
-};
+      };
 
 
-// ==========================================
-// LOADING
-// ==========================================
+  // ==========================================
+  // LOADING
+  // ==========================================
 
-if(loading){
+  if(loading){
 
-return(
+    return(
 
-<View style={styles.loading}>
+      <View style={styles.loading}>
 
-<ActivityIndicator
-size="large"
-color="#2CC36B"
-/>
+        <ActivityIndicator
+          size="large"
+          color="#2CC36B"
+        />
 
-<Text style={styles.loadingText}>
-Carregando mapa...
-</Text>
+        <Text style={styles.loadingText}>
+          Carregando mapa...
+        </Text>
 
-</View>
+      </View>
 
-);
+    );
 
-}
+  }
 
 
-// ==========================================
-// RENDER
-// ==========================================
+  // ==========================================
+  // RENDER
+  // ==========================================
 
-return(
+  return(
 
-<View style={styles.container}>
+    <View style={styles.container}>
 
 
-<MapView
+      <MapView
 
-ref={mapRef}
+        ref={mapRef}
 
-style={styles.map}
+        style={styles.map}
 
-mapType={mapType}
+        mapType={mapType}
 
-initialRegion={initialRegion}
+        initialRegion={initialRegion}
 
-showsUserLocation
+        showsUserLocation
 
-showsTraffic
+        showsTraffic
 
->
+      >
 
-{veiculos.map((item)=>{
+        {veiculos.map((item)=>{
 
-if(
+          if(
 
-!item?.position?.latitude ||
+            !item?.position?.latitude ||
 
-!item?.position?.longitude
+            !item?.position?.longitude
 
-){
+          ){
 
-return null;
+            return null;
 
-}
+          }
 
+          const online =
 
-const online =
+            item.status === 'online' ||
 
-item.status === 'online' ||
+            item?.position?.attributes?.motion ||
 
-item?.position?.attributes?.motion ||
+            item?.position?.attributes?.ignition;
 
-item?.position?.attributes?.ignition;
+          return(
 
+            <Marker
 
-return(
+              key={item.id}
 
-<Marker
+              coordinate={{
 
-tracksViewChanges={false}
+                latitude:Number(
+                  item.position.latitude
+                ),
 
-key={item.id}
+                longitude:Number(
+                  item.position.longitude
+                )
 
-coordinate={{
+              }}
 
-latitude:Number(
-item.position.latitude
-),
+              onPress={()=>{
 
-longitude:Number(
-item.position.longitude
-)
+                setVeiculoSelecionado(item);
 
-}}
+              }}
 
-onPress={()=>{
+            >
 
-setVeiculoSelecionado(item);
+              <View style={[
 
-}}
+                styles.marker,
 
->
+                {
+                  backgroundColor:
+                    online
+                      ? '#22C55E'
+                      : '#FF3B30'
+                }
 
-<View style={[
+              ]}>
 
-styles.marker,
+                <MaterialIcons
+                  name="local-shipping"
+                  size={22}
+                  color="#fff"
+                />
 
-{
-backgroundColor:
-online
-? '#22C55E'
-: '#FF3B30'
-}
+              </View>
 
-]}>
+            </Marker>
 
-<FontAwesome5
-name="truck"
-size={18}
-color="#fff"
-/>
+          );
 
-</View>
+        })}
 
-</Marker>
+      </MapView>
 
-);
 
-})}
+      {/* ====================================== */}
+      {/* TOP BAR */}
+      {/* ====================================== */}
 
-</MapView>
+      <View style={styles.topBar}>
 
 
-{/* ====================================== */}
-{/* TOP BAR */}
-{/* ====================================== */}
+        <TouchableOpacity
 
-<View style={styles.topBar}>
+          style={styles.topBtn}
 
+          onPress={()=>
+            navigation.goBack()
+          }
 
-<TouchableOpacity
+        >
 
-style={styles.topBtn}
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color="#111"
+          />
 
-onPress={()=>
-navigation.goBack()
-}
+        </TouchableOpacity>
 
->
 
-<Ionicons
-name="arrow-back"
-size={24}
-color="#111"
-/>
+        <View style={styles.titleBox}>
 
-</TouchableOpacity>
+          <Text style={styles.title}>
+            Mapa da Frota
+          </Text>
 
+        </View>
 
-<View style={styles.titleBox}>
+      </View>
 
-<Text style={styles.title}>
-Mapa da Frota
-</Text>
 
-</View>
+      {/* ====================================== */}
+      {/* FLOAT BUTTONS */}
+      {/* ====================================== */}
 
-</View>
+      <View style={styles.floatButtons}>
 
 
-{/* ====================================== */}
-{/* FLOAT BUTTONS */}
-{/* ====================================== */}
+        <TouchableOpacity
 
-<View style={styles.floatButtons}>
+          style={styles.floatBtn}
 
+          onPress={()=>
+            setMostrarLayers(
+              !mostrarLayers
+            )
+          }
 
-<TouchableOpacity
+        >
 
-style={styles.floatBtn}
+          <MaterialIcons
+            name="layers"
+            size={24}
+            color="#111"
+          />
 
-onPress={()=>
-setMostrarLayers(
-!mostrarLayers
-)
-}
+        </TouchableOpacity>
 
->
 
-<MaterialIcons
-name="layers"
-size={24}
-color="#111"
-/>
+        <TouchableOpacity
 
-</TouchableOpacity>
+          style={styles.floatBtn}
 
+          onPress={()=>{
 
-<TouchableOpacity
+            if(
+              veiculoSelecionado?.position
+            ){
 
-style={styles.floatBtn}
+              mapRef.current
+                ?.animateToRegion({
 
-onPress={()=>{
+                  latitude:Number(
+                    veiculoSelecionado.position.latitude
+                  ),
 
-if(
-veiculoSelecionado?.position
-){
+                  longitude:Number(
+                    veiculoSelecionado.position.longitude
+                  ),
 
-mapRef.current
-?.animateToRegion({
+                  latitudeDelta:0.005,
+                  longitudeDelta:0.005
 
-latitude:Number(
-veiculoSelecionado.position.latitude
-),
+                });
 
-longitude:Number(
-veiculoSelecionado.position.longitude
-),
+            }
 
-latitudeDelta:0.005,
-longitudeDelta:0.005
+          }}
 
-});
+        >
 
-}
+          <Ionicons
+            name="locate"
+            size={24}
+            color="#111"
+          />
 
-}}
+        </TouchableOpacity>
 
->
 
-<Ionicons
-name="locate"
-size={24}
-color="#111"
-/>
+        <TouchableOpacity
 
-</TouchableOpacity>
+          style={styles.floatBtn}
 
+          onPress={carregarMapa}
 
-<TouchableOpacity
+        >
 
-style={styles.floatBtn}
+          <Ionicons
+            name="refresh"
+            size={24}
+            color="#111"
+          />
 
-onPress={carregarMapa}
+        </TouchableOpacity>
 
->
+      </View>
 
-<Ionicons
-name="refresh"
-size={24}
-color="#111"
-/>
 
-</TouchableOpacity>
+      {/* ====================================== */}
+      {/* MAP TYPES */}
+      {/* ====================================== */}
 
-</View>
+      {mostrarLayers &&(
 
+        <View style={styles.layersBox}>
 
-{/* ====================================== */}
-{/* MAP TYPES */}
-{/* ====================================== */}
 
-{mostrarLayers &&(
+          <TouchableOpacity
 
-<View style={styles.layersBox}>
+            style={styles.layerItem}
 
+            onPress={()=>{
 
-<TouchableOpacity
+              setMapType('standard');
+              setMostrarLayers(false);
 
-style={styles.layerItem}
+            }}
 
-onPress={()=>{
+          >
 
-setMapType('standard');
-setMostrarLayers(false);
+            <Text style={styles.layerText}>
+              Padrão
+            </Text>
 
-}}
+          </TouchableOpacity>
 
->
 
-<Text style={styles.layerText}>
-Padrão
-</Text>
+          <TouchableOpacity
 
-</TouchableOpacity>
+            style={styles.layerItem}
 
+            onPress={()=>{
 
-<TouchableOpacity
+              setMapType('satellite');
+              setMostrarLayers(false);
 
-style={styles.layerItem}
+            }}
 
-onPress={()=>{
+          >
 
-setMapType('satellite');
-setMostrarLayers(false);
+            <Text style={styles.layerText}>
+              Satélite
+            </Text>
 
-}}
+          </TouchableOpacity>
 
->
 
-<Text style={styles.layerText}>
-Satélite
-</Text>
+          <TouchableOpacity
 
-</TouchableOpacity>
+            style={styles.layerItem}
 
+            onPress={()=>{
 
-<TouchableOpacity
+              setMapType('hybrid');
+              setMostrarLayers(false);
 
-style={styles.layerItem}
+            }}
 
-onPress={()=>{
+          >
 
-setMapType('hybrid');
-setMostrarLayers(false);
+            <Text style={styles.layerText}>
+              Híbrido
+            </Text>
 
-}}
+          </TouchableOpacity>
 
->
+        </View>
 
-<Text style={styles.layerText}>
-Híbrido
-</Text>
+      )}
 
-</TouchableOpacity>
 
-</View>
+      {/* ====================================== */}
+      {/* CARD VEÍCULO */}
+      {/* ====================================== */}
 
-)}
+      {veiculoSelecionado &&(
 
+        <View style={styles.card}>
 
-{/* ====================================== */}
-{/* CARD VEÍCULO */}
-{/* ====================================== */}
 
-{veiculoSelecionado &&(
+          <Text style={styles.nome}>
+            🚛 {veiculoSelecionado.name}
+          </Text>
 
-<View style={styles.card}>
 
+          <View style={[
+            styles.infoRow,
+            {
+              paddingRight:10
+            }
+          ]}>
 
-<Text style={styles.nome}>
-🚛 {veiculoSelecionado.name}
-</Text>
+            <Text style={styles.label}>
+              📍 Endereço:
+            </Text>
 
+            {veiculoSelecionado.endereco ? (
 
-<View style={[
-styles.infoRow,
-{
-paddingRight:10
-}
-]}>
+              <Text style={styles.infoText}>
 
-<Text style={styles.label}>
-📍 Endereço:
-</Text>
+                {veiculoSelecionado.endereco}
 
-{veiculoSelecionado.endereco ? (
+              </Text>
 
-<Text style={styles.infoText}>
+            ) : (
 
-{veiculoSelecionado.endereco}
+              <TouchableOpacity
 
-</Text>
+                onPress={async()=>{
 
-) : (
+                  const endereco =
 
-<TouchableOpacity
+                    await buscarEndereco(
 
-onPress={async()=>{
+                      veiculoSelecionado.position.latitude,
+                      veiculoSelecionado.position.longitude
 
-const endereco =
+                    );
 
-await buscarEndereco(
+                  setVeiculoSelecionado({
 
-veiculoSelecionado.position.latitude,
-veiculoSelecionado.position.longitude
+                    ...veiculoSelecionado,
 
-);
+                    endereco
 
-setVeiculoSelecionado({
+                  });
 
-...veiculoSelecionado,
+                }}
 
-endereco
+              >
 
-});
+                <Text style={styles.linkEndereco}>
+                  Mostrar endereço
+                </Text>
 
-}}
+              </TouchableOpacity>
 
->
+            )}
 
-<Text style={styles.linkEndereco}>
-Mostrar endereço
-</Text>
+          </View>
 
-</TouchableOpacity>
 
-)}
+          <Text style={styles.info}>
 
-</View>
+            👨‍✈️ Motorista:
+            {' '}
 
+            {veiculoSelecionado.driver?.name ||
+              veiculoSelecionado.position?.attributes?.driverUniqueId ||
+              'Não identificado'}
 
-<Text style={styles.info}>
+          </Text>
 
-👨‍✈️ Motorista:
-{' '}
 
-{veiculoSelecionado.driver?.name ||
-veiculoSelecionado.position?.attributes?.driverUniqueId ||
-'Não identificado'}
+          <Text style={styles.info}>
 
-</Text>
+            ⚡ Velocidade:
+            {' '}
 
+            {Math.round(
+              (Number(
+                veiculoSelecionado.position?.speed
+              )||0)*1.852
+            )}
 
-<Text style={styles.info}>
+            {' '}km/h
 
-⚡ Velocidade:
-{' '}
+          </Text>
 
-{Math.round(
-(Number(
-veiculoSelecionado.position?.speed
-)||0)*1.852
-)}
 
- km/h
+          <Text style={styles.info}>
 
-</Text>
+            🟢 Status:
+            {' '}
 
+            {veiculoSelecionado.status}
 
-<Text style={styles.info}>
+          </Text>
 
-🟢 Status:
-{' '}
 
-{veiculoSelecionado.status}
+          <Text style={styles.info}>
 
-</Text>
+            🔑 Ignição:
+            {' '}
 
+            {veiculoSelecionado.position?.attributes?.ignition
+              ? 'Ligada'
+              : 'Desligada'}
 
-<Text style={styles.info}>
+          </Text>
 
-🔑 Ignição:
-{' '}
 
-{veiculoSelecionado.position?.attributes?.ignition
-? 'Ligada'
-: 'Desligada'}
+          <TouchableOpacity
 
-</Text>
+            style={styles.detailsBtn}
 
+            onPress={abrirDetalhes}
 
-<TouchableOpacity
+          >
 
-style={styles.detailsBtn}
+            <Text style={styles.detailsText}>
+              Ver detalhes
+            </Text>
 
-onPress={abrirDetalhes}
+          </TouchableOpacity>
 
->
+        </View>
 
-<Text style={styles.detailsText}>
-Ver detalhes
-</Text>
+      )}
 
-</TouchableOpacity>
+    </View>
 
-</View>
-
-)}
-
-</View>
-
-);
+  );
 
 }
 
 
 const styles = StyleSheet.create({
 
-container:{
-flex:1
-},
+  container:{
+    flex:1
+  },
 
-map:{
-width,
-height
-},
+  map:{
+    width,
+    height
+  },
 
-loading:{
-flex:1,
-justifyContent:'center',
-alignItems:'center',
-backgroundColor:'#F3F5F8'
-},
+  loading:{
+    flex:1,
+    justifyContent:'center',
+    alignItems:'center',
+    backgroundColor:'#F3F5F8'
+  },
 
-loadingText:{
-marginTop:10,
-fontSize:18,
-fontWeight:'500'
-},
+  loadingText:{
+    marginTop:10,
+    fontSize:18,
+    fontWeight:'500'
+  },
 
-topBar:{
-position:'absolute',
-top:60,
-left:20,
-right:20,
+  topBar:{
+    position:'absolute',
+    top:60,
+    left:20,
+    right:20,
 
-flexDirection:'row',
-alignItems:'center'
-},
+    flexDirection:'row',
+    alignItems:'center'
+  },
 
-topBtn:{
-width:52,
-height:52,
-borderRadius:16,
+  topBtn:{
+    width:52,
+    height:52,
+    borderRadius:16,
 
-backgroundColor:'#fff',
+    backgroundColor:'#fff',
 
-justifyContent:'center',
-alignItems:'center',
+    justifyContent:'center',
+    alignItems:'center',
 
-elevation:5
-},
+    elevation:5
+  },
 
-titleBox:{
-flex:1,
+  titleBox:{
+    flex:1,
 
-height:52,
+    height:52,
 
-backgroundColor:'#fff',
+    backgroundColor:'#fff',
 
-marginLeft:12,
+    marginLeft:12,
 
-borderRadius:16,
+    borderRadius:16,
 
-justifyContent:'center',
+    justifyContent:'center',
 
-paddingHorizontal:18,
+    paddingHorizontal:18,
 
-elevation:5
-},
+    elevation:5
+  },
 
-title:{
-fontSize:18,
-fontWeight:'bold'
-},
+  title:{
+    fontSize:18,
+    fontWeight:'bold'
+  },
 
-floatButtons:{
-position:'absolute',
-right:20,
-top:140
-},
+  floatButtons:{
+    position:'absolute',
+    right:20,
+    top:140
+  },
 
-floatBtn:{
-width:52,
-height:52,
+  floatBtn:{
+    width:52,
+    height:52,
 
-borderRadius:16,
+    borderRadius:16,
 
-backgroundColor:'#fff',
+    backgroundColor:'#fff',
 
-justifyContent:'center',
-alignItems:'center',
+    justifyContent:'center',
+    alignItems:'center',
 
-marginBottom:12,
+    marginBottom:12,
 
-elevation:5
-},
+    elevation:5
+  },
 
-layersBox:{
-position:'absolute',
+  layersBox:{
+    position:'absolute',
 
-right:82,
-top:140,
+    right:82,
+    top:140,
 
-backgroundColor:'#fff',
+    backgroundColor:'#fff',
 
-borderRadius:16,
+    borderRadius:16,
 
-paddingVertical:10,
+    paddingVertical:10,
 
-elevation:5
-},
+    elevation:5
+  },
 
-layerItem:{
-paddingHorizontal:18,
-paddingVertical:14
-},
+  layerItem:{
+    paddingHorizontal:18,
+    paddingVertical:14
+  },
 
-layerText:{
-fontSize:16
-},
+  layerText:{
+    fontSize:16
+  },
 
-marker:{
-width:48,
-height:48,
+  marker:{
+    width:48,
+    height:48,
 
-borderRadius:24,
+    borderRadius:24,
 
-justifyContent:'center',
-alignItems:'center',
+    justifyContent:'center',
+    alignItems:'center',
 
-borderWidth:4,
-borderColor:'#fff'
-},
+    borderWidth:4,
+    borderColor:'#fff'
+  },
 
-card:{
-position:'absolute',
+  card:{
+    position:'absolute',
 
-left:20,
-right:20,
-bottom:40,
+    left:20,
+    right:20,
+    bottom:40,
 
-backgroundColor:'#fff',
+    backgroundColor:'#fff',
 
-borderRadius:24,
+    borderRadius:24,
 
-padding:20,
+    padding:20,
 
-elevation:5
-},
+    elevation:5
+  },
 
-nome:{
-fontSize:22,
-fontWeight:'bold',
-marginBottom:12
-},
+  nome:{
+    fontSize:22,
+    fontWeight:'bold',
+    marginBottom:12
+  },
 
-info:{
-fontSize:16,
-marginBottom:8
-},
+  info:{
+    fontSize:16,
+    marginBottom:8
+  },
 
-infoRow:{
-marginBottom:10
-},
+  infoRow:{
+    marginBottom:10
+  },
 
-label:{
-fontSize:16,
-fontWeight:'600',
-marginBottom:4
-},
+  label:{
+    fontSize:16,
+    fontWeight:'600',
+    marginBottom:4
+  },
 
-infoText:{
-fontSize:15,
-color:'#333',
-lineHeight:22,
-flexShrink:1
-},
+  infoText:{
+    fontSize:15,
+    color:'#333',
+    lineHeight:22,
+    flexShrink:1
+  },
 
-linkEndereco:{
-fontSize:16,
-color:'#22C55E',
-fontWeight:'bold'
-},
+  linkEndereco:{
+    fontSize:16,
+    color:'#22C55E',
+    fontWeight:'bold'
+  },
 
-detailsBtn:{
-backgroundColor:'#1565F9',
+  detailsBtn:{
+    backgroundColor:'#1565F9',
 
-height:52,
+    height:52,
 
-borderRadius:16,
+    borderRadius:16,
 
-justifyContent:'center',
-alignItems:'center',
+    justifyContent:'center',
+    alignItems:'center',
 
-marginTop:15
-},
+    marginTop:15
+  },
 
-detailsText:{
-color:'#fff',
-fontWeight:'bold',
-fontSize:17
-}
+  detailsText:{
+    color:'#fff',
+    fontWeight:'bold',
+    fontSize:17
+  }
 
 });
