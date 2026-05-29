@@ -27,7 +27,12 @@ useFocusEffect
 } from '@react-navigation/native';
 
 import {
-db
+signOut
+} from 'firebase/auth';
+
+import {
+db,
+auth
 } from '../services/firebase';
 
 import {
@@ -52,6 +57,15 @@ usuario
 
 const empresaId =
 usuario?.empresaId || 'default';
+
+
+// ==========================================
+// PERMISSÃO
+// ==========================================
+
+const isAdmin =
+usuario?.nivel === 'admin' ||
+usuario?.nivel === 'supervisor';
 
 
 // ==========================================
@@ -124,7 +138,26 @@ carregarDados();
 
 
 // ==========================================
-// PERMISSÃO
+// LOGOUT
+// ==========================================
+
+async function sair(){
+
+try{
+
+await signOut(auth);
+
+}catch(e){
+
+console.log(e);
+
+}
+
+}
+
+
+// ==========================================
+// LOADING USER
 // ==========================================
 
 if(!usuario){
@@ -149,26 +182,6 @@ Carregando dashboard...
 }
 
 
-if(
-usuario?.nivel !== 'admin' &&
-usuario?.nivel !== 'supervisor'
-){
-
-return(
-
-<View style={styles.bloqueado}>
-
-<Text style={styles.bloqueadoTexto}>
-Acesso negado
-</Text>
-
-</View>
-
-);
-
-}
-
-
 // ==========================================
 // CARREGAR DADOS
 // ==========================================
@@ -183,6 +196,92 @@ setLoading(true);
 // ==========================================
 // QUERY MULTIEMPRESA
 // ==========================================
+
+const checklistSnap=
+await getDocs(
+query(
+collection(
+db,
+'checklists'
+),
+where(
+'empresaId',
+'==',
+empresaId
+)
+)
+);
+
+
+// ==========================================
+// CHECKLIST MOTORISTA
+// ==========================================
+
+const listaChecklist=[];
+
+checklistSnap.forEach((doc)=>{
+
+listaChecklist.push(doc.data());
+
+});
+
+
+// ==========================================
+// FILTRA MOTORISTA
+// ==========================================
+
+const meusChecklists =
+
+isAdmin
+
+? listaChecklist
+
+: listaChecklist.filter(
+(item)=>
+item.usuario?.uid === usuario?.uid
+);
+
+
+// ==========================================
+// TOTAL CHECKLISTS
+// ==========================================
+
+setChecklists(
+meusChecklists.length
+);
+
+
+// ==========================================
+// GRÁFICO
+// ==========================================
+
+const dias=[
+0,0,0,0,0,0,0
+];
+
+meusChecklists.forEach((data)=>{
+
+if(data.createdAt?.seconds){
+
+const dia =
+new Date(
+data.createdAt.seconds * 1000
+).getDay();
+
+dias[dia] += 1;
+
+}
+
+});
+
+setGraficoChecklist(dias);
+
+
+// ==========================================
+// ADMIN
+// ==========================================
+
+if(isAdmin){
 
 const veiculosSnap=
 await getDocs(
@@ -214,21 +313,6 @@ empresaId
 )
 );
 
-const checklistSnap=
-await getDocs(
-query(
-collection(
-db,
-'checklists'
-),
-where(
-'empresaId',
-'==',
-empresaId
-)
-)
-);
-
 const sinistrosSnap=
 await getDocs(
 query(
@@ -244,11 +328,6 @@ empresaId
 )
 );
 
-
-// ==========================================
-// CONTADORES
-// ==========================================
-
 setVeiculos(
 veiculosSnap.size
 );
@@ -257,41 +336,11 @@ setUsuarios(
 usuariosSnap.size
 );
 
-setChecklists(
-checklistSnap.size
-);
-
 setSinistros(
 sinistrosSnap.size
 );
 
-
-// ==========================================
-// GRÁFICO
-// ==========================================
-
-const dias=[
-0,0,0,0,0,0,0
-];
-
-checklistSnap.forEach((doc)=>{
-
-const data = doc.data();
-
-if(data.createdAt?.seconds){
-
-const dia =
-new Date(
-data.createdAt.seconds * 1000
-).getDay();
-
-dias[dia] += 1;
-
 }
-
-});
-
-setGraficoChecklist(dias);
 
 }catch(e){
 
@@ -397,12 +446,26 @@ Sistema Inteligente de Checklist Veicular
 🔐 {usuario?.nivel}
 </Text>
 
+
+<TouchableOpacity
+style={styles.sairMini}
+onPress={sair}
+>
+
+<Text style={styles.sairMiniTexto}>
+SAIR
+</Text>
+
+</TouchableOpacity>
+
 </View>
 
 
 {/* ========================================== */}
-{/* KPIs */}
+{/* KPIs ADMIN */}
 {/* ========================================== */}
+
+{isAdmin &&(
 
 <View style={styles.cardsRow}>
 
@@ -454,6 +517,8 @@ Usuários
 
 </View>
 
+)}
+
 
 {/* ========================================== */}
 {/* CHECKLISTS */}
@@ -476,7 +541,11 @@ navegar('Historico')
 </Text>
 
 <Text style={styles.cardTextoGrande}>
-Checklists realizados
+
+{isAdmin
+? 'Checklists realizados'
+: 'Meus checklists'}
+
 </Text>
 
 </TouchableOpacity>
@@ -485,6 +554,8 @@ Checklists realizados
 {/* ========================================== */}
 {/* SINISTROS */}
 {/* ========================================== */}
+
+{isAdmin &&(
 
 <TouchableOpacity
 
@@ -511,6 +582,8 @@ Ocorrências registradas
 </Text>
 
 </TouchableOpacity>
+
+)}
 
 
 {/* ========================================== */}
@@ -628,6 +701,8 @@ navegar('RegistrarSinistro')
 </TouchableOpacity>
 
 
+{isAdmin &&(
+
 <TouchableOpacity
 
 style={styles.botaoMapa}
@@ -643,6 +718,8 @@ navegar('Veiculos')
 </Text>
 
 </TouchableOpacity>
+
+)}
 
 </View>
 
@@ -678,19 +755,6 @@ loadingTexto:{
 marginTop:15,
 fontSize:16,
 color:'#555'
-},
-
-bloqueado:{
-flex:1,
-justifyContent:'center',
-alignItems:'center',
-backgroundColor:'#F3F5F8'
-},
-
-bloqueadoTexto:{
-fontSize:24,
-fontWeight:'bold',
-color:'#E53935'
 },
 
 titulo:{
@@ -745,6 +809,22 @@ fontSize:15,
 color:'#021B49',
 marginTop:8,
 fontWeight:'bold'
+},
+
+sairMini:{
+alignSelf:'flex-start',
+marginTop:12,
+backgroundColor:'#111',
+paddingHorizontal:14,
+paddingVertical:8,
+borderRadius:10
+},
+
+sairMiniTexto:{
+color:'#fff',
+fontWeight:'bold',
+fontSize:13,
+textTransform:'uppercase'
 },
 
 cardsRow:{

@@ -98,7 +98,8 @@ export default function BottomTabs() {
 
         headerShown: false,
 
-        tabBarLabel: TAB_LABELS[route.name] || route.name,
+        tabBarLabel:
+          TAB_LABELS[route.name] || route.name,
 
         tabBarActiveTintColor: '#0A1E40',
 
@@ -131,29 +132,49 @@ export default function BottomTabs() {
 
     >
 
-      {isAdmin && (
+      {/* ====================================== */}
+      {/* HOME - TODOS OS USUÁRIOS */}
+      {/* ====================================== */}
 
-        <Tab.Screen
-          name="Home"
-          component={DashboardScreen}
-        />
+      <Tab.Screen
+        name="Home"
+        component={DashboardScreen}
+      />
 
-      )}
+
+      {/* ====================================== */}
+      {/* CHECKLIST */}
+      {/* ====================================== */}
 
       <Tab.Screen
         name="Checklist"
         component={ChecklistScreen}
       />
 
+
+      {/* ====================================== */}
+      {/* HISTÓRICO */}
+      {/* ====================================== */}
+
       <Tab.Screen
         name="Historico"
         component={HistoricoScreen}
       />
 
+
+      {/* ====================================== */}
+      {/* FROTA */}
+      {/* ====================================== */}
+
       <Tab.Screen
         name="Frota"
         component={FrotaScreen}
       />
+
+
+      {/* ====================================== */}
+      {/* SINISTROS - SOMENTE ADMIN */}
+      {/* ====================================== */}
 
       {isAdmin && (
 

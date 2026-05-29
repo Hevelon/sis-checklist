@@ -327,7 +327,7 @@ box-sizing:border-box;
 }
 
 @page{
-size:A4 landscape;
+size:A4 portrait;
 margin:6px;
 }
 
@@ -654,7 +654,7 @@ background:#F8FAFC;
 td{
 padding:5px;
 font-size:9px;
-border-bottom:1px solid #EDF2F7;
+border-bottom:1px solid #000;
 }
 
 .numero{
@@ -775,20 +775,21 @@ gap:6px;
 }
 
 .foto-card{
-width:48%;
+width:31%;
+margin-bottom:10px;
 }
 
 .foto{
 
 width:100%;
 
-height:82px;
+height:140px;
 
 object-fit:cover;
 
 border-radius:10px;
 
-border:2px solid #E2E8F0;
+border:2px solid #000;
 
 }
 
@@ -1135,25 +1136,7 @@ ${avarias.join('') || 'Nenhuma avaria encontrada'}
 </div>
 
 
-<!-- FOTOS -->
 
-<div class="box">
-
-<div class="box-header">
-📸 FOTOS
-</div>
-
-<div class="box-content">
-
-<div class="foto-grid">
-
-${imagensHtml.join('') || 'Sem fotos'}
-
-</div>
-
-</div>
-
-</div>
 
 
 <!-- OBS -->
@@ -1219,6 +1202,54 @@ Supervisor
 <div class="footer">
 
 Documento gerado automaticamente pelo SIS CHECKLIST
+
+</div>
+
+</div>
+
+<div style="page-break-before:always;"></div>
+
+<div class="page">
+
+<div class="header">
+
+<div class="header-left">
+
+<div class="logo">
+📸
+</div>
+
+<div>
+
+<div class="header-title">
+REGISTRO FOTOGRÁFICO
+</div>
+
+<div class="header-subtitle">
+Fotos da inspeção veicular
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="box">
+
+<div class="box-header">
+📸 FOTOS DO CHECKLIST
+</div>
+
+<div class="box-content">
+
+<div class="foto-grid">
+
+${imagensHtml.join('') || 'Sem fotos'}
+
+</div>
+
+</div>
 
 </div>
 
